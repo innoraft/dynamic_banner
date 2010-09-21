@@ -1,0 +1,256 @@
+<?php
+
+// $Id$
+
+/**
+ * Distributed under GNU GPL version 3
+ * @file
+ * Will create menus and the block needed to view all of the information
+ * Also will handle database writing and other cleanup functions
+ */
+
+/**
+ * Hook Functions (Drupal)
+ */
+
+ /**
+ * Implementation of hook_init().
+ */
+function dynamic_banner_init() {
+  drupal_add_css(drupal_get_path('module', 'dynamic_banner') .'/css/lms.css');
+}
+ 
+/**
+ * Implementation of hook_help().
+ */
+function dynamic_banner_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#dynamic_banner':
+      $output = t('<p>Provides a mechanism for Pages to automatically generate a banner for use inside a block.</p>
+                  <h2>Settings</h2>
+          <p>Move the block to the part of your theme you wish it to display on.
+          I suggest adding in your own template theme for location and printining (see drupal theming)</p>
+          <p>Change the theme file (located in dynamic banner module folder) so that you can change what the html is when dynamic banner prints.</p>
+          <p>Modify the links inside of the admin/site_building menu or when you create new pages a specific banner appears on it, and / or make a default banner for non specific pages. </p>
+          <p>Follow the convention of * for wild cards (no slash required) and ! for randoms (see examples: TODO coming soon)</p>');
+      return $output;
+  }// end switch 
+}// end help function
+
+/**
+ * Implementation of hook_perm().
+ * Permissions for those not in the know
+ */
+function dynamic_banner_perm() {
+  return array('administer dynamic_banner');
+}// end permission function
+
+/**
+ * TO DO on node creation add in a box to add a banner in like alias does
+ * Implementation of hook_nodeapi().
+ */
+function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'presave':
+    // About to be saved (before insert/update)
+    break;
+    case 'insert':
+    // just made a new page so make that connection
+    case 'update':
+    // change the old value to the new one
+    
+    // grab the old one search the table and insert (replace)
+      break;
+    case 'delete':
+    // delete this value from the database
+    
+    // grab what it is then delete from table
+    break;
+    default:
+    break;
+  }// end switch
+}// end node api function
+
+/**
+ * Implementation of hook_menu().
+ * it is key to note here access arguments is referring to permissions
+ */
+function dynamic_banner_menu() {
+  $items = array();
+  // settings page located in admin pages
+  $items['admin/build/banners/settings'] = array(
+  'title'            => 'Settings',
+  'description'      => 'A page for the dynamic banner settings',
+  'page callback'    => 'drupal_get_form',
+  'page arguments'   => array('dynamic_banner_settings'),
+  'type'             => MENU_LOCAL_TASK,
+  'access arguments' => array('administer dynamic_banner'),
+  'file'             => 'includes/callbacks.inc',
+  );
+  // admin menu located in site building (type normal)
+  $items['admin/build/banners'] = array(
+    'title'            => 'Dynamic Banner',
+    'description'      => 'Configure the Dynamic Banner.',
+    'page callback'    => 'dynamic_banner_admin_page',
+    'access arguments' => array('administer dynamic_banner'),
+    'file'             => 'includes/callbacks.inc',
+  );
+  // part of the path when using querys
+  $items['admin/build/banners/edit'] = array(
+    'title'            => 'Edit Banner',
+    'page callback'    => 'dynamic_banner_admin_edit',
+    'access arguments' => array('administer dynamic_banner'),
+    'type'             => MENU_CALLBACK,
+    'file'             => 'includes/callbacks.inc',
+  );
+  // part of the path when using querys
+  $items['admin/build/banners/delete'] = array(
+    'title' => 'Delete Banner',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dynamic_banner_admin_delete_confirm'),
+    'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/callbacks.inc',
+  );
+  // the defaulted page to load on menu click
+  $items['admin/build/banners/list'] = array(
+    'title' => 'List Banners',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -10,
+  );
+  // a part of the local menu (top)
+  $items['admin/build/banners/add'] = array(
+    'title' => 'Add Banner',
+    'page callback' => 'dynamic_banner_admin_edit',
+    'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'includes/callbacks.inc',
+  );
+  // a part of the local menu (top)
+  $items['admin/build/banners/default'] = array(
+    'title' => 'Default Banner',
+    'page callback' => 'dynamic_banner_default_admin_edit',
+    'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'includes/callbacks.inc',
+  );
+
+  return $items;
+}// end menu function
+
+/**
+ * Implementation of hook_theme().
+ * theme template used in module.
+ */
+function dynamic_banner_theme() {
+  $theme = array(
+    'banner_output' => array(
+      'arguments' => array('url' => NULL, 'text' => NULL, 'display_setting' => NULL, 'display_errors' => NULL),    
+      'path' => drupal_get_path('module', 'dynamic_banner') . '/templates',
+      'template' => 'banner_output_template',
+    ),
+  );
+  
+  return $theme;
+}// end theme function
+
+/**
+ * Implementation of hook_block().
+ */
+function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
+  switch ($op) {
+    case 'list':
+      $blocks = array();
+
+      // TODO: Add sensible default settings
+      $blocks[0] = array(
+        'info' => t('Dynamic Banner Block'),
+        'cache' => BLOCK_NO_CACHE,
+      );
+
+      return $blocks;
+    case 'configure':
+      break;
+    case 'save':
+      break;
+    case 'view':
+      // store the path of the page the block is loading from
+      $path = drupal_get_path_alias($_GET['q']);
+      
+      // construct the mysql statement and query the database
+      $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
+      $result = db_query($sql, $path);
+      
+      // for every resultant row (SHOULD ALWAYS BE ONE)
+      while ($row = db_fetch_array($result)) {
+        $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
+        return array('content' => $content . "");
+      }
+      
+      // after this point pattern was not matched so keep searching for a banner
+      // below should be pages that require random and wildcard searching
+      // note path was stored above so use it for pattern recognition
+      
+      // reconstruct the sql statement
+      /* TO DO optimize this code because xml does not translate well into db calls */
+      $sql = "SELECT * FROM {dynamic_banner}";
+      $result = db_query($sql);
+      
+      while ($row = db_fetch_array($result)) {
+        // will return everything before the wildcard
+        $search_wild = stristr($row['path'], "*", TRUE);
+        
+        /* TO DO needs better handling for layers of wild card (currently 3 levels deep not supported) */
+        // if a wild card was found 
+        if ( $search_wild ) {
+          if ( stristr($path, $search_wild)) {
+            // end the loop save process time
+            $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
+            return array('content' => $content . "");
+          }
+        }
+        
+        // search for the banners that require random handling 
+        $search_rand = stristr($row['path'], "!", TRUE);
+        
+        // if a random was found execute random handler
+        if ( $search_rand ) {
+          // if the random matches the path of the page calling this code
+          if ( $search_rand == $path ) {
+            // get extra stuff associated with randoms
+            $images = $row['imgurl'];
+            // support for random text if needed
+            $texts = $row['text'];
+            // explode comma seperated images and text
+            $image = explode(",", $images);
+            // support for random text if needed
+            $text = explode(",", $texts);
+            
+            // count how many there are
+            $count = count($image);
+
+            // handle the random with ints (deal with array starts at 0 problems)
+            // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
+            $random = ($count - rand(0, $count-1))-1;
+
+            // remember text is optional
+            $content =  theme('banner_output', $image[$random], $text[$random]);
+            return array('content' => $content . "");
+          }
+        }
+      }// end while
+      
+      // well no banner was found dont out put anything 
+      // maybe in future development a default banner can be added this would be the spot for it!
+      /* TODO default banner */
+      $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";
+      $result = db_query($sql, $path);
+      // for every resultant row (SHOULD ALWAYS BE ONE)
+      while ($row = db_fetch_array($result)) {
+        $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
+        return array('content' => $content . "");
+      }
+      
+      break; // just encase something went wrong
+  }// end switch
+}// end block function
