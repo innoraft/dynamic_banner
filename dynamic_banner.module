@@ -234,16 +234,14 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
             $random = ($count - rand(0, $count-1))-1;
 
             // remember text is optional
-            $content =  theme('banner_output', $image[$random], $text[$random]);
+            $content =  theme('banner_output', $image[$random], $text[$random], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
             return array('content' => $content . "");
           }
         }
       }// end while
       
-      // well no banner was found dont out put anything 
-      // maybe in future development a default banner can be added this would be the spot for it!
-      /* TODO default banner */
-      $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";
+      // well no banner was found for this specific page if we have a default banner then display it
+      $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";// bad way of storing it
       $result = db_query($sql, $path);
       // for every resultant row (SHOULD ALWAYS BE ONE)
       while ($row = db_fetch_array($result)) {
