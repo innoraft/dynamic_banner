@@ -19,7 +19,7 @@
 function dynamic_banner_init() {
   drupal_add_css(drupal_get_path('module', 'dynamic_banner') .'/css/lms.css');
 }
- 
+
 /**
  * Implementation of hook_help().
  */
@@ -53,21 +53,27 @@ function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
   switch ($op) {
     case 'presave':
     // About to be saved (before insert/update)
-    break;
+      break;
+
     case 'insert':
     // just made a new page so make that connection
+
     case 'update':
     // change the old value to the new one
-    
     // grab the old one search the table and insert (replace)
       break;
+
     case 'delete':
     // delete this value from the database
-    
     // grab what it is then delete from table
-    break;
+      break;
+
+    case 'view':
+      break;
+
     default:
-    break;
+      break;
+
   }// end switch
 }// end node api function
 
@@ -150,7 +156,7 @@ function dynamic_banner_theme() {
       'template' => 'banner_output_template',
     ),
   );
-  
+
   return $theme;
 }// end theme function
 
@@ -176,30 +182,30 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
     case 'view':
       // store the path of the page the block is loading from
       $path = drupal_get_path_alias($_GET['q']);
-      
+
       // construct the mysql statement and query the database
       $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
       $result = db_query($sql, $path);
-      
+
       // for every resultant row (SHOULD ALWAYS BE ONE)
       while ($row = db_fetch_array($result)) {
         $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
         return array('content' => $content . "");
       }
-      
+
       // after this point pattern was not matched so keep searching for a banner
       // below should be pages that require random and wildcard searching
       // note path was stored above so use it for pattern recognition
-      
+
       // reconstruct the sql statement
       /* TO DO optimize this code because xml does not translate well into db calls */
       $sql = "SELECT * FROM {dynamic_banner}";
       $result = db_query($sql);
-      
+
       while ($row = db_fetch_array($result)) {
         // will return everything before the wildcard
         $search_wild = stristr($row['path'], "*", TRUE);
-        
+
         /* TO DO needs better handling for layers of wild card (currently 3 levels deep not supported) */
         // if a wild card was found 
         if ( $search_wild ) {
@@ -209,10 +215,10 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
             return array('content' => $content . "");
           }
         }
-        
+
         // search for the banners that require random handling 
         $search_rand = stristr($row['path'], "!", TRUE);
-        
+
         // if a random was found execute random handler
         if ( $search_rand ) {
           // if the random matches the path of the page calling this code
@@ -225,7 +231,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
             $image = explode(",", $images);
             // support for random text if needed
             $text = explode(",", $texts);
-            
+
             // count how many there are
             $count = count($image);
 
@@ -239,7 +245,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
           }
         }
       }// end while
-      
+
       // well no banner was found for this specific page if we have a default banner then display it
       $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";// bad way of storing it
       $result = db_query($sql, $path);
@@ -248,7 +254,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
         $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', ''), variable_get('dynamic_banner_display_errors', ''));
         return array('content' => $content . "");
       }
-      
+
       break; // just encase something went wrong
   }// end switch
 }// end block function
