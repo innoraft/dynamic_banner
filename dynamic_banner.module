@@ -89,8 +89,8 @@ function dynamic_banner_menu() {
   'description'      => 'A page for the dynamic banner settings',
   'page callback'    => 'drupal_get_form',
   'page arguments'   => array('dynamic_banner_settings'),
-  'type'             => MENU_LOCAL_TASK,
   'access arguments' => array('administer dynamic_banner'),
+  'type'             => MENU_LOCAL_TASK,
   'file'             => 'includes/callbacks.inc',
   );
   // admin menu located in site building (type normal)
@@ -99,6 +99,7 @@ function dynamic_banner_menu() {
     'description'      => 'Configure the Dynamic Banner.',
     'page callback'    => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
+    'type'             => MENU_LOCAL_TASK,
     'file'             => 'includes/callbacks.inc',
   );
   // part of the path when using querys
