@@ -385,7 +385,7 @@ function dynamic_banner_load($dbid) {
 
 function dynamic_banner_settings($form_state) {
   // todo need to find a better way of doing this
-  $display_setting = variable_get( 'dynamic_banner_display_setting', '' );
+  $display_setting = variable_get( 'dynamic_banner_display_setting', DEFAULT_OUTPUT );
   if ( $display_setting == 'url' ) {
     $display_current_setting = 0;
   }
@@ -398,7 +398,7 @@ function dynamic_banner_settings($form_state) {
   
   // todo need to find a better way of doing this
   $errors_current_setting = 1;
-  if ( variable_get('dynamic_banner_display_errors', '') ) {
+  if ( variable_get('dynamic_banner_display_errors', DEFAULT_ERROR) ) {
     $errors_current_setting = 0;
   }
   
