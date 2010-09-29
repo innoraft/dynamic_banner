@@ -19,7 +19,7 @@ function dynamic_banner_install() {
   variable_set('dynamic_banner_display_setting', 'urltext');
   variable_set('dynamic_banner_display_errors', FALSE);
 
-  drupal_set_message(t('Dynamic Banner Module installed successfully.'), 'warning');
+  drupal_set_message(st('Dynamic Banner Module installed successfully.'), 'warning');
 }
 
 /**
@@ -32,7 +32,7 @@ function dynamic_banner_uninstall() {
   variable_del('dynamic_banner_display_setting');
   variable_del('dynamic_banner_display_errors');
 
-  drupal_set_message(t('Dynamic Banner Module uninstalled successfully.'), 'warning');
+  drupal_set_message(st('Dynamic Banner Module uninstalled successfully.'), 'warning');
 }
 
 function dynamic_banner_schema() {

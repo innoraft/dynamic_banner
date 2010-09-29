@@ -387,17 +387,19 @@ function dynamic_banner_settings($form_state) {
   // todo need to find a better way of doing this
   $display_setting = variable_get( 'dynamic_banner_display_setting', '' );
   if ( $display_setting == 'url' ) {
-	$display_current_setting = 0;
-  } elseif ( $display_setting == 'text' ) {
+    $display_current_setting = 0;
+  }
+  elseif ( $display_setting == 'text' ) {
     $display_current_setting = 1;
-  } elseif ( $display_setting == 'urltext' ) {
+  }
+  elseif ( $display_setting == 'urltext' ) {
     $display_current_setting = 2;
   }
   
   // todo need to find a better way of doing this
   $errors_current_setting = 1;
   if ( variable_get('dynamic_banner_display_errors', '') ) {
-     $errors_current_setting = 0;
+    $errors_current_setting = 0;
   }
   
   // grab the current view from the user
@@ -434,9 +436,11 @@ function dynamic_banner_settings_submit($form, &$form_state) {
   // todo fix this
   if ($display == 0) {
     $display = 'url';
-  } elseif ($display == 1) {
-	$display = 'text';
-  } elseif ($display == 2) {
+  }
+  elseif ($display == 1) {
+    $display = 'text';
+  }
+  elseif ($display == 2) {
     $display = 'urltext';
   }
   variable_set('dynamic_banner_display_setting', $display);
