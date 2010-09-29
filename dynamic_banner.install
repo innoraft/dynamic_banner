@@ -8,6 +8,39 @@
  *
  * Will create the database needed to store the banner connections
  */
+ function dynamic_banner_schema() {
+  $schema['dynamic_banner'] = array(
+    'description' => 'The table for the path to banner relationship',
+    'fields' => array(
+      'dbid' => array(
+        'description' => 'the primary key always unique (probably not used)',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'path' => array(
+        'description' => 'The path of the page',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'imgurl' => array(
+        'description' => 'The path of the banner',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'text' => array(
+        'description' => 'The text to display on this relationship',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('dbid'),
+  );
+  return $schema;
+}
 
 /**
  * Implementation of hook_install().
@@ -33,40 +66,4 @@ function dynamic_banner_uninstall() {
   variable_del('dynamic_banner_display_errors');
 
   drupal_set_message(st('Dynamic Banner Module uninstalled successfully.'), 'warning');
-}
-
-function dynamic_banner_schema() {
-  $schema = array();
-
-  $schema['dynamic_banner'] = array(
-  'description' => 'The table for the path to banner relationship',
-    'fields' => array(
-    'dbid' => array(
-    'description' => 'the primary key always unique (probably not used)',
-    'type' => 'serial',
-    'unsigned' => TRUE,
-    'not null' => TRUE,
-    ),
-      'path' => array(
-    'description' => 'The path of the page',
-        'type' => 'varchar',
-    'length' => '255',
-        'not null' => TRUE,
-      ),
-      'imgurl' => array(
-    'description' => 'The path of the banner',
-        'type' => 'varchar',
-        'length' => '255',
-    'not null' => TRUE,
-      ),
-    'text' => array(
-    'description' => 'The text to display on this relationship',
-    'type' => 'varchar',
-    'length' => '255',
-    'not null' => FALSE,
-    ),
-    ),
-    'primary key' => array('dbid')
-  );
-  return $schema;
 }
