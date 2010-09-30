@@ -67,3 +67,12 @@ function dynamic_banner_uninstall() {
 
   drupal_set_message(st('Dynamic Banner Module uninstalled successfully.'), 'warning');
 }
+
+/**
+ * Add a new table to store webform submissions with related order ids.
+ */
+function dynamic_banner_update_6300() {
+  $ret = array();
+  db_add_field($ret, 'dynamic_banner', 'link', array('description' => 'The link to make the banner point to', 'type' => 'varchar', 'length' => '255', 'not null' => FALSE));
+  return $ret;
+}

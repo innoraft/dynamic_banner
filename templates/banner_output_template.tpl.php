@@ -13,6 +13,8 @@
   $url;
   // Text (optional)
   $text;
+  // Link (optional)
+  $link;
   // display setting
   $display_setting;
   // display errors
@@ -31,10 +33,9 @@
       $output .= "</div><div id='banner-right'>";// if you have text in your banner match this up with your css
       $output .= "<p id='bannerTitle'>" . $text . "</p>";
       $output .= "</div>";
-      echo $output;
     }
     elseif ( $display_errors) {
-      echo "problem";
+      $output .= "banner problem";
     }
   }
   elseif ($display_setting == 'url') {
@@ -43,10 +44,9 @@
       $output .= "<div id='banner'>";
       $output .= "<img src='/$url' class='jpg' alt='banner' width='596' height='209' />";
       $output .= "</div>";
-      echo $output;
     }
     elseif ( $display_errors) {
-      echo "problem";
+      $output .= "banner problem";
     }
   }
   elseif ($display_setting == 'text') {
@@ -55,9 +55,19 @@
       $output .= "<div id='banner'>";
       $output .= "<p>$text</p>";
       $output .= "</div>";
-      echo $output;
     }
     elseif ( $display_errors) {
-      echo "problem";
+      $output .= "banner problem";
     }
   }
+  elseif ($display_setting == 'urllink') {
+	if ($url && $link) {
+		$output .= "<div id='banner'>";
+		$output .= "<a class='link' href='/$link'><img class='jpg' alt='banner' src='/$url'></a>";
+		$output .= "</div>";
+	}
+	elseif ($display_errors) {
+        $output .= "banner problem";
+	}
+  }
+  print $output;

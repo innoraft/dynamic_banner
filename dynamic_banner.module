@@ -21,9 +21,11 @@
 
  /**
  * Implementation of hook_init().
+ * Will add the js and css files to display on anypage that the banner block is on
  */
 function dynamic_banner_init() {
-  drupal_add_css(drupal_get_path('module', 'dynamic_banner') .'/css/lms.css');
+  drupal_add_css(drupal_get_path('module', 'dynamic_banner') .'/css/banner.css');
+  drupal_add_js(drupal_get_path('module', 'dynamic_banner') .'/js/banner.js');
 }
 
 /**
@@ -37,6 +39,7 @@ function dynamic_banner_help($path, $arg) {
           <p>Move the block to the part of your theme you wish it to display on.
           I suggest adding in your own template theme for location and printining (see drupal theming)</p>
           <p>Change the theme file (located in dynamic banner module folder) so that you can change what the html is when dynamic banner prints.</p>
+		  <p>Change the css and js files to do what you like with the banner</p>
           <p>Modify the links inside of the admin/site_building menu or when you create new pages a specific banner appears on it, and / or make a default banner for non specific pages. </p>
           <p>Follow the convention of * for wild cards (no slash required) and ! for randoms (see examples)</p>
           <p>Example normal path = about/us</p>
@@ -165,7 +168,7 @@ function dynamic_banner_menu() {
 function dynamic_banner_theme() {
   $theme = array(
     'banner_output' => array(
-      'arguments' => array('url' => NULL, 'text' => NULL, 'display_setting' => NULL, 'display_errors' => NULL),    
+      'arguments' => array('url' => NULL, 'text' => NULL, 'link' => NULL, 'display_setting' => NULL, 'display_errors' => NULL),    
       'path' => drupal_get_path('module', 'dynamic_banner') . '/templates',
       'template' => 'banner_output_template',
     ),
@@ -203,7 +206,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
 
       // for every resultant row (SHOULD ALWAYS BE ONE)
       while ($row = db_fetch_array($result)) {
-        $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+        $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
         return array('content' => $content);
       }
 
@@ -223,10 +226,10 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
         /* TO DO needs better handling for layers of wild card (currently 3 levels deep not supported) */
         // if a wild card was found 
         if ( $search_wild ) {
-          $search_wild = str_replace("!","",$row['path']);
+          $search_wild = str_replace("*","",$row['path']);
           if ( stristr($path, $search_wild)) {
             // end the loop save process time
-            $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
             return array('content' => $content);
           }
         }
@@ -250,12 +253,12 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
             // count how many there are
             $count = count($image);
 
-            // handle the random with ints (deal with array starts at 0 problems)
+            // handle the random with ints (deal with array start at 0 problems)
             // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
             $random = ($count - rand(0, $count-1))-1;
 
             // remember text is optional
-            $content =  theme('banner_output', $image[$random], $text[$random], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            $content =  theme('banner_output', $image[$random], $text[$random], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
             return array('content' => $content);
           }
         }
@@ -266,7 +269,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
       $result = db_query($sql, $path);
       // for every resultant row (SHOULD ALWAYS BE ONE)
       while ($row = db_fetch_array($result)) {
-        $content = theme('banner_output', $row['imgurl'], $row['text'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+        $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
         return array('content' => $content);
       }
 
