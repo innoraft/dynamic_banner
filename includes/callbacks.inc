@@ -112,8 +112,32 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
     '#size' => 45,
     '#description' => t('Specify the path to the image. Starting from the root site directory(comma seperated for randoms).'),
     '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
-    '#required' => TRUE,
+    //'#required' => TRUE,
   );
+  
+  // banner picture chooser
+  $form['picture'] = array(
+    '#type' => 'fieldset',
+	'#title' => t('Banner'),
+  );
+  
+  $picture = $edit['imgurl'];
+  //if we are editing an existing pictue place that code in here
+  if ($picture) {
+    $form['picture']['current_picture'] = array('#value' => "<img src='/" . $picture . "'/>");
+    $form['picture']['picture_delete'] = array('#type' => 'checkbox', '#title' => t('Delete Banner'), '#description' => t('Check this box to delete your current picture.'));
+  }
+  else {
+    $form['picture']['picture_delete'] = array('#type' => 'hidden');
+  }
+  $form['picture']['picture_upload'] = array(
+	'#type' => 'file',
+	'#title' => t('Upload Banner'),
+	'#size' => 64, 
+	/*'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),*/
+  );
+  $form['#validate'][] = 'dynamic_banner_validate_picture';
+  
   $form['text'] = array(
     '#type' => 'textfield',
     '#title' => t('Text'),
@@ -136,6 +160,38 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
   $form['submit'] = array('#type' => 'submit', '#value' => t('Update Banner'));
 
   return $form;
+}
+
+// validate a banner to actually be a picture
+function dynamic_banner_validate_picture(&$form, &$form_state) {
+  // Validate the uploaded picture.
+  $validators = array(
+    'file_validate_is_image' => array(),
+  );
+  
+  if ($file = file_save_upload('picture_upload', $validators)) {
+    // Remove the old picture.
+    //if (isset($form_state['values']['_account']->picture) && file_exists($form_state['values']['_account']->picture)) {
+      //file_delete($form_state['values']['_account']->picture);
+    //}
+
+    // The image was saved using file_save_upload() and was added to the
+    // files table as a temporary file. We'll make a copy and let the garbage
+    // collector delete the original upload.
+    $info = image_get_info($file->filepath);
+    $destination = "/sites/all/themes/banners/" . $file->filename;
+	
+	// not working todo fix
+	echo "destination = " . $destination;
+	$form_state['values']['imgurl'] = $destination;
+	
+    if (file_copy($file, $destination, FILE_EXISTS_REPLACE)) {
+      $form_state['values']['picture'] = $file->filepath;
+    }
+    else {
+      form_set_error('picture_upload', t("Failed to upload the banner image; the %directory directory doesn't exist or is not writable.", array('%directory' => "/sites/all/theme/banners")));
+    }
+  }
 }
 
 /**
@@ -180,8 +236,32 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     '#size' => 45,
     '#description' => t('Specify the path to the image. Starting from the root site directory(comma seperated for randoms).'),
     '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
-    '#required' => TRUE,
+    //'#required' => TRUE,
   );
+  
+    // banner picture chooser
+  $form['picture'] = array(
+    '#type' => 'fieldset',
+	'#title' => t('Banner'),
+  );
+  
+  $picture = $edit['imgurl'];
+  //if we are editing an existing pictue place that code in here
+  if ($picture) {
+    $form['picture']['current_picture'] = array('#value' => "<img src='/" . $picture . "'/>");
+    $form['picture']['picture_delete'] = array('#type' => 'checkbox', '#title' => t('Delete Banner'), '#description' => t('Check this box to delete your current picture.'));
+  }
+  else {
+    $form['picture']['picture_delete'] = array('#type' => 'hidden');
+  }
+  $form['picture']['picture_upload'] = array(
+	'#type' => 'file',
+	'#title' => t('Upload Banner'),
+	'#size' => 64, 
+	/*'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),*/
+  );
+  $form['#validate'][] = 'dynamic_banner_validate_picture';
+  
   $form['text'] = array(
     '#type' => 'textfield',
     '#title' => t('Text'),
@@ -217,9 +297,10 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
  */
 function dynamic_banner_admin_form_validate($form, &$form_state) {
   $path = $form_state['values']['path'];
-  $imgurl = $form_state['values']['imgurl'];
-  $link = $form_state['values']['link'];
-  $dbid = isset($form_state['values']['dbid']) ? $form_state['values']['dbid'] : 0;
+  //$imgurl = $form_state['values']['imgurl'];
+  //$picture = $form_state['values']['picture']['picture_upload'];
+  //$link = $form_state['values']['link'];
+  //$dbid = isset($form_state['values']['dbid']) ? $form_state['values']['dbid'] : 0;
   
   // we are updating so let it make the changes
   if ( $dbid != 0) {

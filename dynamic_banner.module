@@ -39,7 +39,7 @@ function dynamic_banner_help($path, $arg) {
           <p>Move the block to the part of your theme you wish it to display on.
           I suggest adding in your own template theme for location and printining (see drupal theming)</p>
           <p>Change the theme file (located in dynamic banner module folder) so that you can change what the html is when dynamic banner prints.</p>
-		  <p>Change the css and js files to do what you like with the banner</p>
+      <p>Change the css and js files to do what you like with the banner</p>
           <p>Modify the links inside of the admin/site_building menu or when you create new pages a specific banner appears on it, and / or make a default banner for non specific pages. </p>
           <p>Follow the convention of * for wild cards (no slash required) and ! for randoms (see examples)</p>
           <p>Example normal path = about/us</p>
@@ -101,22 +101,22 @@ function dynamic_banner_menu() {
   $items = array();
   // settings page located in admin pages
   $items['admin/build/banners/settings'] = array(
-  'title'            => 'Settings',
-  'description'      => 'A page for the dynamic banner settings',
-  'page callback'    => 'drupal_get_form',
-  'page arguments'   => array('dynamic_banner_settings'),
-  'access arguments' => array('administer dynamic_banner'),
-  'type'             => MENU_LOCAL_TASK,
-  'file'             => 'includes/callbacks.inc',
+  'title'              => 'Settings',
+  'description'        => 'A page for the dynamic banner settings',
+  'page callback'      => 'drupal_get_form',
+  'page arguments'     => array('dynamic_banner_settings'),
+  'access arguments'   => array('administer dynamic_banner'),
+  'type'               => MENU_LOCAL_TASK,
+  'file'               => 'includes/callbacks.inc',
   );
-  // admin menu located in site building (type normal)
+  // admin menu located in site building
   $items['admin/build/banners'] = array(
     'title'            => 'Dynamic Banner',
     'description'      => 'Configure the Dynamic Banner.',
     'page callback'    => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
-    'type'             => MENU_LOCAL_TASK,
     'file'             => 'includes/callbacks.inc',
+	// dont asign a type to make it part of the menu
   );
   // part of the path when using querys
   $items['admin/build/banners/edit'] = array(
@@ -128,12 +128,12 @@ function dynamic_banner_menu() {
   );
   // part of the path when using querys
   $items['admin/build/banners/delete'] = array(
-    'title' => 'Delete Banner',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_delete_confirm'),
+    'title'            => 'Delete Banner',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_admin_delete_confirm'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_CALLBACK,
-    'file' => 'includes/callbacks.inc',
+    'type'             => MENU_CALLBACK,
+    'file'             => 'includes/callbacks.inc',
   );
   // the defaulted page to load on menu click
   $items['admin/build/banners/list'] = array(
@@ -197,72 +197,86 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
     case 'save':
       break;
     case 'view':
-      // store the path of the page the block is loading from
+      // store the path of the page the block is loading from, this will sead our first searches
       $path = drupal_get_path_alias($_GET['q']);
-
-      // construct the mysql statement and query the database
+	  
+	  //echo $path;
+    
+      // construct the mysql statement and query the database, does not need to be setup every time
       $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
-      $result = db_query($sql, $path);
+    
+      // loop until we find the top down hirarchy 
+      do {
+	    $result = NULL;
+        // exact match section //
+        $result = db_query($sql, $path);
 
-      // for every resultant row (SHOULD ALWAYS BE ONE)
-      while ($row = db_fetch_array($result)) {
-        $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-        return array('content' => $content);
-      }
-
-      // after this point pattern was not matched so keep searching for a banner
-      // below should be pages that require random and wildcard searching
-      // note path was stored above so use it for pattern recognition
-
-      // reconstruct the sql statement
-      /* TO DO optimize this code because xml does not translate well into db calls */
-      $sql = "SELECT * FROM {dynamic_banner}";
-      $result = db_query($sql);
-
-      while ($row = db_fetch_array($result)) {
-        // will return everything before the wildcard
-        $search_wild = stristr($row['path'], "*");
-
-        /* TO DO needs better handling for layers of wild card (currently 3 levels deep not supported) */
-        // if a wild card was found 
-        if ( $search_wild ) {
-          $search_wild = str_replace("*","",$row['path']);
-          if ( stristr($path, $search_wild)) {
-            // end the loop save process time
-            $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-            return array('content' => $content);
-          }
+		$object = db_fetch_object($result);
+        // search for that path string exact match
+        if ($object->imgurl) {
+		  //echo "exact match " . $path;
+		  
+          $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => $content);
+		  exit();
         }
+    
+	    // wild section //
+		$result = NULL;
+		$wild_search = $path . '*';
+        $result = db_query($sql, $wild_search);
+		//echo $wild_search;
 
-        // search for the banners that require random handling 
-        $search_rand = stristr($row['path'], "!");
-        // if a random was found execute random handler
-        if ( $search_rand ) {
-          $search_rand = str_replace("!","",$row['path']);
-          // if the random matches the path of the page calling this code
-          if ( $search_rand == $path ) {
-            // get extra stuff associated with randoms
-            $images = $row['imgurl'];
-            // support for random text if needed
-            $texts = $row['text'];
-            // explode comma seperated images and text
-            $image = explode(",", $images);
-            // support for random text if needed
-            $text = explode(",", $texts);
-
-            // count how many there are
-            $count = count($image);
-
-            // handle the random with ints (deal with array start at 0 problems)
-            // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
-            $random = ($count - rand(0, $count-1))-1;
-
-            // remember text is optional
-            $content =  theme('banner_output', $image[$random], $text[$random], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-            return array('content' => $content);
-          }
+		$object = db_fetch_object($result);
+		
+         // search for the wild card string exact match
+        if ($object->imgurl) {
+		  //echo "image " . $object->imgurl;
+          $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => $content);
+		  exit();
         }
-      }// end while
+    
+        // random section //
+		$result = NULL;
+		$random_search = $path . '/';
+        $result = db_query($sql, $random_search);
+
+		$object = db_fetch_object($result);
+        // search for that random string exact match
+        if ($object->imgurl) {
+          // get extra stuff associated with randoms
+          $images = $object->imgurl;
+          // support for random text if needed
+          $texts = $object->text;
+          // explode comma seperated images and text
+          $image = explode(",", $images);
+          // support for random text if needed
+          $text = explode(",", $texts);
+
+          // count how many there are
+          $count = count($image);
+
+          // handle the random with ints (deal with array start at 0 problems)
+          // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
+          $random = ($count - rand(0, $count-1))-1;
+
+          // remember text is optional
+          $content = theme('banner_output', $image[$random], $text[$random], $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => $content);
+		  exit();
+        }
+    
+        // chop off more of the string and try again, it is key to not modify the path before this point
+        $last_slash_position = strrpos ( $path, "/"); // returns false if not found
+		if ($last_slash_position !== FALSE) {
+		  $path = substr($path, 0, $last_slash_position);
+		}
+		else {
+		  $path = FALSE;
+		}
+    
+      } while ($path != FALSE);
 
       // well no banner was found for this specific page if we have a default banner then display it
       $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";// bad way of storing it
