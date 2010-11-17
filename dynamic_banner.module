@@ -239,7 +239,7 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
     
         // random section //
 		$result = NULL;
-		$random_search = $path . '/';
+		$random_search = $path . '!';
         $result = db_query($sql, $random_search);
 
 		$object = db_fetch_object($result);
