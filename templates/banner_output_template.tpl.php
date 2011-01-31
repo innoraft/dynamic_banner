@@ -61,13 +61,13 @@
     }
   }
   elseif ($display_setting == 'urllink') {
-	if ($url && $link) {
-		$output .= "<div id='banner'>";
-		$output .= "<a class='link' href='/$link'><img class='jpg' alt='banner' src='/$url'></a>";
-		$output .= "</div>";
-	}
-	elseif ($display_errors) {
+    if ($url && $link) {
+      $output .= "<div id='banner'>";
+      $output .= "<a class='link' href='/$link'><img class='jpg' alt='banner' src='/$url'></a>";
+      $output .= "</div>";
+    }
+    elseif ($display_errors) {
         $output .= "banner problem";
-	}
+    }
   }
   print $output;

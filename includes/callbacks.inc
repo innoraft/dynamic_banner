@@ -16,7 +16,7 @@
 function dynamic_banner_admin_page($keys = NULL) {  
   // Add the filter form above the overview table.
   $output = drupal_get_form('dynamic_banner_admin_filter_form', $keys);
-  $count = db_result(db_query("SELECT COUNT(*) FROM {dynamic_banner}"));
+  //$count = db_result(db_query("SELECT COUNT(*) FROM {dynamic_banner}"));
 
   if ($keys) {
     // Replace wildcards with MySQL/PostgreSQL wildcards.
@@ -32,7 +32,7 @@ function dynamic_banner_admin_page($keys = NULL) {
     array('data' => t('Url'), 'field' => 'path', 'sort' => 'asc'),
     array('data' => t('ImgUrl'), 'field' => 'imgurl'),
     array('data' => t('Text'), 'field' => 'text'),
-	array('data' => t('Link'), 'field' => 'link'),
+    array('data' => t('Link'), 'field' => 'link'),
     array('data' => t('Operations'), 'colspan' => '2')
   );
   
@@ -100,7 +100,7 @@ function dynamic_banner_default_admin_edit($dbid = 999) {
   return $output;
 }
 
-function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '')) {
+function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '', 'link' => '')) {
   $form['#banner'] = $edit;
   
   /********* TODO MAKE LOGIC FOR IMAGE UPLOADER AND CHOOSER!!! *************/
@@ -118,7 +118,7 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
   // banner picture chooser
   $form['picture'] = array(
     '#type' => 'fieldset',
-	'#title' => t('Banner'),
+    '#title' => t('Default Banner'),
   );
   
   $picture = $edit['imgurl'];
@@ -130,12 +130,25 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
   else {
     $form['picture']['picture_delete'] = array('#type' => 'hidden');
   }
+  /*
   $form['picture']['picture_upload'] = array(
-	'#type' => 'file',
-	'#title' => t('Upload Banner'),
-	'#size' => 64, 
-	/*'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),*/
-  );
+    '#type' => 'file',
+    '#title' => t('Upload Banner'),
+    '#size' => 64, 
+    //'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')), 
+  );*/
+  $form['new']['attach'] = array(
+      '#type' => 'submit',
+	  // this changes the submit box
+      '#value' => t('Attach Image'),
+      '#name' => 'attach',
+      '#ahah' => array(
+        'path' => 'upload/js',
+        'wrapper' => 'attach-wrapper',
+        'progress' => array('type' => 'bar', 'message' => t('Please wait...')),
+      ),
+      '#submit' => array('node_form_submit_build_node'),
+    );
   $form['#validate'][] = 'dynamic_banner_validate_picture';
   
   $form['text'] = array(
@@ -154,7 +167,7 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
     '#maxlength' => 128,
     '#size' => 45,
     '#description' => t('Specify the link you want your banner to point to (optional).'),
-	 '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
+    '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required' => FALSE,
   );
   $form['submit'] = array('#type' => 'submit', '#value' => t('Update Banner'));
@@ -180,11 +193,11 @@ function dynamic_banner_validate_picture(&$form, &$form_state) {
     // collector delete the original upload.
     $info = image_get_info($file->filepath);
     $destination = "/sites/all/themes/banners/" . $file->filename;
-	
-	// not working todo fix
-	echo "destination = " . $destination;
-	$form_state['values']['imgurl'] = $destination;
-	
+  
+  // not working todo fix
+  echo "destination = " . $destination;
+  $form_state['values']['imgurl'] = $destination;
+  
     if (file_copy($file, $destination, FILE_EXISTS_REPLACE)) {
       $form_state['values']['picture'] = $file->filepath;
     }
@@ -242,7 +255,7 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     // banner picture chooser
   $form['picture'] = array(
     '#type' => 'fieldset',
-	'#title' => t('Banner'),
+  '#title' => t('Banner'),
   );
   
   $picture = $edit['imgurl'];
@@ -255,10 +268,10 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     $form['picture']['picture_delete'] = array('#type' => 'hidden');
   }
   $form['picture']['picture_upload'] = array(
-	'#type' => 'file',
-	'#title' => t('Upload Banner'),
-	'#size' => 64, 
-	/*'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),*/
+    '#type' => 'file',
+    '#title' => t('Upload Banner'),
+    '#size' => 64, 
+  /* '#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')), */
   );
   $form['#validate'][] = 'dynamic_banner_validate_picture';
   
@@ -278,7 +291,7 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     '#maxlength' => 128,
     '#size' => 45,
     '#description' => t('Specify the link you want your banner to point to (optional).'),
-	'#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
+    '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required' => FALSE,
   );
   if ($edit['dbid']) {
@@ -450,7 +463,7 @@ function dynamic_banner_admin_filter_form(&$form_state, $keys = '') {
  * Process filter form submission when the Filter button is pressed.
  */
 function dynamic_banner_admin_filter_form_submit_filter($form, &$form_state) {
-  $form_state['redirect'] = 'admin/build/banners/list/'. trim($form_state['values']['filter']);
+  $form_state['redirect'] = 'admin/build/banners/list/' . trim($form_state['values']['filter']);
 }
 
 /**

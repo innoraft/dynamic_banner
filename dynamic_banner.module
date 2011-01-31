@@ -20,16 +20,16 @@
  */
 
  /**
- * Implementation of hook_init().
+ * Implements hook_init().
  * Will add the js and css files to display on anypage that the banner block is on
  */
 function dynamic_banner_init() {
-  drupal_add_css(drupal_get_path('module', 'dynamic_banner') .'/css/banner.css');
-  drupal_add_js(drupal_get_path('module', 'dynamic_banner') .'/js/banner.js');
+  drupal_add_css(drupal_get_path('module', 'dynamic_banner') . '/css/banner.css');
+  drupal_add_js(drupal_get_path('module', 'dynamic_banner') . '/js/banner.js');
 }
 
 /**
- * Implementation of hook_help().
+ * Implements hook_help().
  */
 function dynamic_banner_help($path, $arg) {
   switch ($path) {
@@ -54,8 +54,8 @@ function dynamic_banner_help($path, $arg) {
 }// end help function
 
 /**
- * Implementation of hook_perm().
- * Permissions for those not in the know
+ * Implements hook_perm().
+ * Permissions for dynamic banner
  */
 function dynamic_banner_perm() {
   return array('administer dynamic_banner');
@@ -63,7 +63,7 @@ function dynamic_banner_perm() {
 
 /**
  * TO DO on node creation add in a box to add a banner in like alias does
- * Implementation of hook_nodeapi().
+ * Implements hook_nodeapi().
  */
 function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
   switch ($op) {
@@ -94,7 +94,7 @@ function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
 }// end node api function
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  * it is key to note here access arguments is referring to permissions
  */
 function dynamic_banner_menu() {
@@ -116,7 +116,7 @@ function dynamic_banner_menu() {
     'page callback'    => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
     'file'             => 'includes/callbacks.inc',
-	// dont asign a type to make it part of the menu
+  // dont asign a type to make it part of the menu
   );
   // part of the path when using querys
   $items['admin/build/banners/edit'] = array(
@@ -157,12 +157,21 @@ function dynamic_banner_menu() {
     'type' => MENU_LOCAL_TASK,
     'file' => 'includes/callbacks.inc',
   );
+  
+  // javascript upload code location
+  /*
+  $items['upload/js'] = array(
+    'title' => 'Javascript Choice Form',
+    'page callback' => 'poll_choice_js',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );*/
 
   return $items;
 }// end menu function
 
 /**
- * Implementation of hook_theme().
+ * Implements hook_theme().
  * theme template used in module.
  */
 function dynamic_banner_theme() {
@@ -178,7 +187,7 @@ function dynamic_banner_theme() {
 }// end theme function
 
 /**
- * Implementation of hook_block().
+ * Implements hook_block().
  */
 function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
   switch ($op) {
@@ -199,50 +208,50 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
     case 'view':
       // store the path of the page the block is loading from, this will sead our first searches
       $path = drupal_get_path_alias($_GET['q']);
-	  
-	  //echo $path;
+    
+    //echo $path;
     
       // construct the mysql statement and query the database, does not need to be setup every time
       $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
     
       // loop until we find the top down hirarchy 
       do {
-	    $result = NULL;
+      $result = NULL;
         // exact match section //
         $result = db_query($sql, $path);
 
-		$object = db_fetch_object($result);
+    $object = db_fetch_object($result);
         // search for that path string exact match
         if ($object->imgurl) {
-		  //echo "exact match " . $path;
-		  
+      //echo "exact match " . $path;
+      
           $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => $content);
-		  exit();
+      exit();
         }
     
-	    // wild section //
-		$result = NULL;
-		$wild_search = $path . '*';
+      // wild section //
+    $result = NULL;
+    $wild_search = $path . '*';
         $result = db_query($sql, $wild_search);
-		//echo $wild_search;
+    //echo $wild_search;
 
-		$object = db_fetch_object($result);
-		
+    $object = db_fetch_object($result);
+    
          // search for the wild card string exact match
         if ($object->imgurl) {
-		  //echo "image " . $object->imgurl;
+      //echo "image " . $object->imgurl;
           $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => $content);
-		  exit();
+      exit();
         }
     
         // random section //
-		$result = NULL;
-		$random_search = $path . '!';
+    $result = NULL;
+    $random_search = $path . '!';
         $result = db_query($sql, $random_search);
 
-		$object = db_fetch_object($result);
+    $object = db_fetch_object($result);
         // search for that random string exact match
         if ($object->imgurl) {
           // get extra stuff associated with randoms
@@ -264,17 +273,17 @@ function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
           // remember text is optional
           $content = theme('banner_output', $image[$random], $text[$random], $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => $content);
-		  exit();
+      exit();
         }
     
         // chop off more of the string and try again, it is key to not modify the path before this point
-        $last_slash_position = strrpos ( $path, "/"); // returns false if not found
-		if ($last_slash_position !== FALSE) {
-		  $path = substr($path, 0, $last_slash_position);
-		}
-		else {
-		  $path = FALSE;
-		}
+        $last_slash_position = strrpos( $path, "/"); // returns false if not found
+    if ($last_slash_position !== FALSE) {
+      $path = drupal_substr($path, 0, $last_slash_position);
+    }
+    else {
+      $path = FALSE;
+    }
     
       } while ($path != FALSE);
 
