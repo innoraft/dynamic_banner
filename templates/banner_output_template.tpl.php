@@ -1,6 +1,5 @@
 <?php
 
-
   /**
    * @file
    * This file will determine how the dynamic banner block will display
