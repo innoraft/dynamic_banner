@@ -1,4 +1,5 @@
 <?php
+// $Id$
 
 /**
  * @file
@@ -12,10 +13,16 @@
  * and return the list of matching URL aliases.
  */
 function dynamic_banner_admin_page($keys = NULL) {
+  $output = ""; // default 
+
+  // grab the filter if the user set one
+  $filter = dynamic_banner_build_filter_query();
+  
   // Add the filter form above the overview table.
-  $output = drupal_get_form('dynamic_banner_admin_filter_form', $keys);
+  $output = drupal_get_form('dynamic_banner_admin_filter_form');
   //$count = db_result(db_query("SELECT COUNT(*) FROM {dynamic_banner}"));
 
+  /*
   if ($keys) {
     // Replace wildcards with MySQL/PostgreSQL wildcards
     $keys = preg_replace('!\*+!', '%', $keys);
@@ -23,43 +30,88 @@ function dynamic_banner_admin_page($keys = NULL) {
   }
   else {
     $sql = 'SELECT * FROM {dynamic_banner}';
-  }
-
+  }*/
+  
+  
   // construct the headers of the table
   $header = array(
-    array('data' => t('Url'), 'field' => 'path', 'sort' => 'asc'),
-    array('data' => t('ImgUrl'), 'field' => 'imgurl'),
-    array('data' => t('Text'), 'field' => 'text'),
-    array('data' => t('Link'), 'field' => 'link'),
-    array('data' => t('Operations'), 'colspan' => '2')
+    array(
+      'data' => t('Url'),
+      'field' => 'path',
+      'sort' => 'asc',
+    ),
+    array(
+      'data' => t('ImgUrl'),
+      'field' => 'imgurl',
+    ),
+    array(
+      'data' => t('Text'),
+      'field' => 'text',
+    ),
+    array(
+      'data' => t('Link'),
+      'field' => 'link',
+    ),
+    array(
+      'data' => t('Operations'),
+      'colspan' => '2',
+    ),
   );
+  
+
+  $query = db_select('dynamic_banner', 'd'); // alias the table name to d
+  $query->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time')) // Select the specified fields from the node table.
+    ->extend('PagerDefault')
+    ->extend('TableSort')
+    ->distinct() // probably dont need this
+    //->condition('n.type', 'page') // Only load nodes with the type page.
+    //->range(0, 20); // Load the first 5 rows.
+    ->limit(5)
+    ->orderByHeader($header);
+    
+  if (!empty($filter['where'])) {
+    $query->where($filter['where'], $filter['args']);
+  }
+  $result = $query->execute();
+
+
+  print_r($query->__toString());
 
   // allows us to sort the table
-  $sql .= tablesort_sql($header);
+  //$sql .= tablesort_sql($header);
   // get the current page of results
-  $result = pager_query($sql, 50, 0 , NULL, $keys);
+  //$result = pager_query($sql, 50, 0, NULL, $keys);
 
   // start constructing the individual rows
   $rows = array();
-  while ($data = db_fetch_object($result)) {
+  foreach ($result as $data) {
     if ( $data->dbid == 999) {
-      $row = array(check_plain('DEFAULT'), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/build/banners/default"), l(t('delete'), "admin/build/banners/delete/$data->dbid"));
+      $row = array(check_plain('DEFAULT'), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/structure/banners/default"), l(t('delete'), "admin/structure/banners/delete/$data->dbid"));
     }
     else {
-      $row = array(check_plain($data->path), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/build/banners/edit/$data->dbid"), l(t('delete'), "admin/build/banners/delete/$data->dbid"));
+      $row = array(check_plain($data->path), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/structure/banners/edit/$data->dbid"), l(t('delete'), "admin/structure/banners/delete/$data->dbid"));
     }
     $rows[] = $row;
   }
 
   // deal with an empty set
-  if (empty($rows)) {
-    $empty_message = $keys ? t('No Banners Found.') : t('No Banner Urls found.') ;
+  /*if (empty($rows)) {
+    $empty_message = $keys ? t('No Banners Found.') : t('No Banner Urls found.');
     $rows[] = array(array('data' => $empty_message));
-  }
+  }*/
 
   // display the information
-  $output .= theme('table', $header, $rows);
-  $output .= theme('pager', NULL, 50, 0);
+  //$output .= theme('table', array('header' => $header, 'rows' => $rows));
+  //$output .= theme('pager', array('tags' => NULL, 'element' => 0));
+  
+  $output['dynamic_banner_table'] = array(
+    '#theme' => 'table', 
+    '#header' => $header, 
+    '#rows' => $rows, 
+    //'#attributes' => array('id' => 'admin-dblog'), 
+    '#empty' => t('No Banners Found.'),
+  );
+  $output['dynamic_banner_pager'] = array('#theme' => 'pager');
 
   // let drupal handle print and echo
   return $output;
@@ -71,7 +123,7 @@ function dynamic_banner_admin_page($keys = NULL) {
 function dynamic_banner_admin_edit($dbid = 0) {
   if ($dbid) {
     $banner = dynamic_banner_load($dbid);
-    drupal_set_title(check_plain($banner['path']));
+    drupal_set_title($banner['path']);
     $output = drupal_get_form('dynamic_banner_admin_form', $banner);
   }
   else {
@@ -82,12 +134,47 @@ function dynamic_banner_admin_edit($dbid = 0) {
 }
 
 /**
- * Menu callback; handles pages for creating and editing the default banner (999(
+ * Needed for the filtering of the banners page
+ */
+function dynamic_banner_build_filter_query() {
+  $filters = dynamic_banner_filters();
+
+  // Build query
+  $where = $args = array();
+  foreach ($_SESSION['dynamic_banner_filter'] as $key => $filter) {
+    $filter_where = array();
+    foreach ($filter as $value) {
+      $filter_where[] = $filters[$key]['where'];
+      $args[] = $value;
+    }
+    if (!empty($filter_where)) {
+      $where[] = '(' . implode(' OR ', $filter_where) . ')';
+    }
+  }
+  $where = !empty($where) ? implode(' AND ', $where) : '';
+
+  return array(
+    'where' => $where, 
+    'args' => $args,
+  );
+}
+
+/**
+ * The specific filters that can be used
+ */
+function dynamic_banner_filters() {
+  $filters = array();
+  $filters['type'] = array('title' => t('Type'), 'where' => 'd.url ?', 'options' => array('NOT LIKE %* AND NOT LIKE %!','LIKE %*','LIKE %!'));
+  return $filters;
+}
+
+/**
+ * Menu callback; handles pages for creating and editing the default banner (999)
  */
 function dynamic_banner_default_admin_edit($dbid = 999) {
   if ($dbid) {
     $banner = dynamic_banner_load($dbid);
-    drupal_set_title(check_plain($banner['path']));
+    drupal_set_title($banner['path']);
     $output = drupal_get_form('dynamic_banner_default_admin_form', $banner);
   }
   else {
@@ -100,7 +187,7 @@ function dynamic_banner_default_admin_edit($dbid = 999) {
 /**
  *
  */
-function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '', 'link' => '')) {
+function dynamic_banner_default_admin_form($form, &$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '', 'link' => '')) {
   $form['#banner'] = $edit;
 
   /********* TODO MAKE LOGIC FOR IMAGE UPLOADER AND CHOOSER!!! *************/
@@ -125,32 +212,39 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
   //if we are editing an existing pictue place that code in here
   if ($picture) {
     $form['picture']['current_picture'] = array('#value' => "<img src='/" . $picture . "'/>");
-    $form['picture']['picture_delete'] = array('#type' => 'checkbox', '#title' => t('Delete Banner'), '#description' => t('Check this box to delete your current picture.'));
+    $form['picture']['picture_delete'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Delete Banner'),
+      '#description' => t('Check this box to delete your current picture.'),
+    );
   }
   else {
     $form['picture']['picture_delete'] = array('#type' => 'hidden');
   }
 
   /*
-  $form['picture']['picture_upload'] = array(
-    '#type' => 'file',
-    '#title' => t('Upload Banner'),
-    '#size' => 64,
-    //'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),
-  );*/
+   $form['picture']['picture_upload'] = array(
+   '#type' => 'file',
+   '#title' => t('Upload Banner'),
+   '#size' => 64,
+   //'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),
+   );*/
 
   $form['new']['attach'] = array(
-      '#type' => 'submit',
-      // this changes the submit box
-      '#value' => t('Attach Image'),
-      '#name' => 'attach',
-      '#ahah' => array(
-        'path' => 'upload/js',
-        'wrapper' => 'attach-wrapper',
-        'progress' => array('type' => 'bar', 'message' => t('Please wait...')),
+    '#type' => 'submit',
+    // this changes the submit box
+    //'#value' => t('Attach Image'),
+    '#name' => 'attach',
+    '#ahah' => array(
+      'path' => 'upload/js',
+      'wrapper' => 'attach-wrapper',
+      'progress' => array(
+        'type' => 'bar',
+        'message' => t('Please wait...'),
       ),
-      '#submit' => array('node_form_submit_build_node'),
-    );
+    ),
+    '#submit' => array('node_form_submit_build_node'),
+  );
   $form['#validate'][] = 'dynamic_banner_validate_picture';
 
   $form['text'] = array(
@@ -173,7 +267,10 @@ function dynamic_banner_default_admin_form(&$form_state, $edit = array('path' =>
     '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required' => FALSE,
   );
-  $form['submit'] = array('#type' => 'submit', '#value' => t('Update Banner'));
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => f('Update Banner'),
+  );
 
   return $form;
 }
@@ -190,7 +287,7 @@ function dynamic_banner_validate_picture(&$form, &$form_state) {
   if ($file = file_save_upload('picture_upload', $validators)) {
     // Remove the old picture.
     //if (isset($form_state['values']['_account']->picture) && file_exists($form_state['values']['_account']->picture)) {
-      //file_delete($form_state['values']['_account']->picture);
+    //file_delete($form_state['values']['_account']->picture);
     //}
 
     // The image was saved using file_save_upload() and was added to the
@@ -220,7 +317,7 @@ function dynamic_banner_default_admin_form_submit($form, &$form_state) {
   dynamic_banner_set_banner($form_state['values']['path'], $form_state['values']['imgurl'], $form_state['values']['text'], $form_state['values']['link'], 999);
 
   drupal_set_message(t('The default banner has been saved.'));
-  $form_state['redirect'] = 'admin/build/banners';
+  $form_state['redirect'] = 'admin/structure/banners';
   return;
 }
 
@@ -231,7 +328,7 @@ function dynamic_banner_default_admin_form_submit($form, &$form_state) {
  * see path_admin_form_validate()
  * see path_admin_form_submit()
  */
-function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '', 'link' => '', 'dbid' => NULL)) {
+function dynamic_banner_admin_form($form, &$form_state, $edit = array('path' => '', 'imgurl' => '', 'text' => '', 'link' => '', 'dbid' => NULL)) {
   $form['#banner'] = $edit;
 
   $form['path'] = array(
@@ -267,7 +364,11 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
   //if we are editing an existing pictue place that code in here
   if ($picture) {
     $form['picture']['current_picture'] = array('#value' => "<img src='/" . $picture . "'/>");
-    $form['picture']['picture_delete'] = array('#type' => 'checkbox', '#title' => t('Delete Banner'), '#description' => t('Check this box to delete your current picture.'));
+    $form['picture']['picture_delete'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Delete Banner'),
+      '#description' => t('Check this box to delete your current picture.'),
+    );
   }
   else {
     $form['picture']['picture_delete'] = array('#type' => 'hidden');
@@ -279,7 +380,7 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     //'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),
   );
   $form['#validate'][] = 'dynamic_banner_validate_picture';
- 
+
   $form['text'] = array(
     '#type' => 'textfield',
     '#title' => t('Text'),
@@ -300,11 +401,20 @@ function dynamic_banner_admin_form(&$form_state, $edit = array('path' => '', 'im
     '#required' => FALSE,
   );
   if ($edit['dbid']) {
-    $form['dbid'] = array('#type' => 'hidden', '#value' => $edit['dbid']);
-    $form['submit'] = array('#type' => 'submit', '#value' => t('Update Banner'));
+    $form['dbid'] = array(
+      '#type' => 'hidden',
+      '#value' => $edit['dbid'],
+    );
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Update Banner'),
+    );
   }
   else {
-    $form['submit'] = array('#type' => 'submit', '#value' => t('Create a new Banner'));
+    $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Create a new Banner'),
+    );
   }
 
   return $form;
@@ -319,23 +429,23 @@ function dynamic_banner_admin_form_validate($form, &$form_state) {
   //$picture = $form_state['values']['picture']['picture_upload'];
   //$link = $form_state['values']['link'];
   //$dbid = isset($form_state['values']['dbid']) ? $form_state['values']['dbid'] : 0;
- 
+
   // we are updating so let it make the changes
   if ( $dbid != 0) {
     return;
   }
 
   // check for more than one of the same path banners
-  if (db_result(db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = '%s'", $path))) {
+  if (db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path", array(':path' => $path))->fetchField()) {
     form_set_error('path', t('The path %path is already in use.', array('%path' => $path)));
   }
 
   /* TODO FIX VALIDATION ERRORS*/
   /*
-  // check for path existance and path access
-  if ( !drupal_valid_path($path)) {
-    form_set_error('path', t("The path '@link_path' is either invalid or you do not have access to it.", array('@link_path' => $path)));
-  }*/
+   // check for path existance and path access
+   if ( !drupal_valid_path($path)) {
+   form_set_error('path', t("The path '@link_path' is either invalid or you do not have access to it.", array('@link_path' => $path)));
+   }*/
 }
 
 /**
@@ -350,30 +460,49 @@ function dynamic_banner_set_banner($path = NULL, $imgurl = NULL, $text = NULL, $
     /* TODO FIX LOGIC */
     // An existing alias.
     /* if (!$path || !$alias) {
-      // Delete the alias based on pid.
-      db_query('DELETE FROM {dynamic_banner} WHERE dbid = %d', $dbid);
-    } */
+     // Delete the alias based on pid.
+     db_query('DELETE FROM {dynamic_banner} WHERE dbid = %d', $dbid);
+     } */
     // the default
     if ( $dbid == 999 ) {
-      db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link, dbid) VALUES ('%s', '%s', '%s', '%s, '%d')", $path, $imgurl, $text, $link, $dbid);
+      /* db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link, dbid) VALUES ('%s', '%s', '%s', '%s, '%d')", $path, $imgurl, $text, $link, $dbid) */
+      $id = db_insert('dynamic_banner')->fields(array(
+        'path' => $path,
+        'imgurl' => $imgurl,
+        'text' => $text,
+        'link' => $link,
+        'dbid' => $dbid,
+      ))->execute();
     }
     else {
       // Update the existing banner.
-      db_query("UPDATE {dynamic_banner} SET path = '%s', imgurl = '%s', text = '%s', link = '%s' WHERE dbid = %d", $path, $imgurl, $text, $link, $dbid);
+      /* db_query("UPDATE {dynamic_banner} SET path = '%s', imgurl = '%s', text = '%s', link = '%s' WHERE dbid = %d", $path, $imgurl, $text, $link, $dbid) */
+      db_update('dynamic_banner')->fields(array(
+        'path' => $path,
+        'imgurl' => $imgurl,
+        'text' => $text,
+        'link' => $link,
+      ))->condition('dbid', $dbid)->execute();
     }
   }
   else {
-      /* TODO FIX LOGIC */
+    /* TODO FIX LOGIC */
     // Check for existing banner path.
     /* there is currently no such method for banners such as path alias
-    if ($banner == drupal_get_path_alias($path, $language)) {
-    // There is already such an alias, neutral or in this language.
-    // Update the alias based on alias; setting the language if not yet done.
-    db_query("UPDATE {dynamic_banner} SET path = '%s', imgurl = '%s', text = '%s' WHERE path = '%s'", $path, $imgurl, $text, $path);
-    }
-    else {*/
+     if ($banner == drupal_get_path_alias($path, $language)) {
+     // There is already such an alias, neutral or in this language.
+     // Update the alias based on alias; setting the language if not yet done.
+     db_query("UPDATE {dynamic_banner} SET path = '%s', imgurl = '%s', text = '%s' WHERE path = '%s'", $path, $imgurl, $text, $path);
+     }
+     else {*/
     // A new alias. Add it to the database.
-    db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link) VALUES ('%s', '%s', '%s', '%s')", $path, $imgurl, $text, $link);
+    /* db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link) VALUES ('%s', '%s', '%s', '%s')", $path, $imgurl, $text, $link) */
+    $id = db_insert('dynamic_banner')->fields(array(
+      'path' => $path,
+      'imgurl' => $imgurl,
+      'text' => $text,
+      'link' => $link,
+    ))->execute();
     //}
   }
 }
@@ -386,21 +515,24 @@ function dynamic_banner_admin_form_submit($form, &$form_state) {
   dynamic_banner_set_banner($form_state['values']['path'], $form_state['values']['imgurl'], $form_state['values']['text'], $form_state['values']['link'], isset($form_state['values']['dbid']) ? $form_state['values']['dbid'] : 0);
 
   drupal_set_message(t('The banner has been saved.'));
-  $form_state['redirect'] = 'admin/build/banners';
+  $form_state['redirect'] = 'admin/structure/banners';
   return;
 }
 
 /**
  * Menu callback; confirms deleting a Banner
  */
-function dynamic_banner_admin_delete_confirm($form_state, $dbid) {
+function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
   $path = dynamic_banner_load($dbid);
   if (user_access('administer dynamic_banner')) {
-    $form['dbid'] = array('#type' => 'value', '#value' => $dbid);
-    $output = confirm_form($form,
-      t('Are you sure you want to delete banner %title?', array('%title' => $path['path'])),
-      isset($_GET['destination']) ? $_GET['destination'] : 'admin/build/banners');
-    }
+    $form['dbid'] = array(
+      '#type' => 'value',
+      '#value' => $dbid,
+    );
+    $output = confirm_form($form, 
+      t('Are you sure you want to delete banner %title?', array('%title' => $path['path'])), 
+      isset($_GET['destination']) ? $_GET['destination'] : 'admin/structure/banners');
+  }
   return $output;
 }
 
@@ -410,7 +542,7 @@ function dynamic_banner_admin_delete_confirm($form_state, $dbid) {
 function dynamic_banner_admin_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     dynamic_banner_admin_delete($form_state['values']['dbid']);
-    $form_state['redirect'] = 'admin/build/banners';
+    $form_state['redirect'] = 'admin/structure/banners';
     return;
   }
 }
@@ -419,7 +551,9 @@ function dynamic_banner_admin_delete_confirm_submit($form, &$form_state) {
  * Post-confirmation; delete a Banner
  */
 function dynamic_banner_admin_delete($dbid = 0) {
-  db_query('DELETE FROM {dynamic_banner} WHERE dbid = %d', $dbid);
+  // TODO Please review the conversion of this statement to the D7 database API syntax.
+  /* db_query('DELETE FROM {dynamic_banner} WHERE dbid = %d', $dbid) */
+  db_delete('dynamic_banner')->condition('dbid', $dbid)->execute();
   drupal_set_message(t('The banner has been deleted, the image still exists though'));
 }
 
@@ -429,36 +563,44 @@ function dynamic_banner_admin_delete($dbid = 0) {
  * ingroup forms
  * see dynamic_banner_admin_filter_form_submit()
  */
-function dynamic_banner_admin_filter_form(&$form_state, $keys = '') {
-  $form['#attributes'] = array('class' => 'search-form');
-
-  $form['basic'] = array('#type' => 'fieldset',
-    '#title' => t('Filter Banners')
+function dynamic_banner_admin_filter_form($form, &$form_state, $keys = '') {
+  $filters = dynamic_banner_filters();
+  
+  $form['filters'] = array(
+    '#type' => 'fieldset', 
+    '#title' => t('Filter dynamic banner'), 
+    '#collapsible' => TRUE, 
+    '#collapsed' => empty($_SESSION['dynamic_banner_filter']),
   );
-
-  $form['basic']['inline'] = array('#prefix' => '<div class="container-inline">', '#suffix' => '</div>');
-
-  $form['basic']['inline']['filter'] = array(
-    '#type' => 'textfield',
-    '#title' => '',
-    '#default_value' => $keys,
-    '#maxlength' => 128,
-    '#size' => 25,
+  
+  foreach ($filters as $key => $filter) {
+    $form['filters']['status'][$key] = array(
+      '#title' => $filter['title'], 
+      '#type' => 'select', 
+      '#multiple' => TRUE, 
+      '#size' => 8, 
+      '#options' => $filter['options'],
+    );
+    if (!empty($_SESSION['dynamic_banner_filter'][$key])) {
+      $form['filters']['status'][$key]['#default_value'] = $_SESSION['dynamic_banner_filter'][$key];
+    }
+  }
+  
+  $form['filters']['actions'] = array(
+    '#type' => 'actions', 
+    '#attributes' => array('class' => array('container-inline')),
   );
-
-  $form['basic']['inline']['submit'] = array(
-    '#type' => 'submit',
+  $form['filters']['actions']['submit'] = array(
+    '#type' => 'submit', 
     '#value' => t('Filter'),
-    '#submit' => array('dynamic_banner_admin_filter_form_submit_filter'),
   );
-
-  if ($keys) {
-    $form['basic']['inline']['reset'] = array(
-    '#type' => 'submit',
-    '#value' => t('Reset'),
-    '#submit' => array('dynamic_banner_admin_filter_form_submit_reset'),
+  if (!empty($_SESSION['dynamic_banner_filter'])) {
+    $form['filters']['actions']['reset'] = array(
+      '#type' => 'submit', 
+      '#value' => t('Reset'),
     );
   }
+
   return $form;
 }
 
@@ -466,14 +608,14 @@ function dynamic_banner_admin_filter_form(&$form_state, $keys = '') {
  * Process filter form submission when the Filter button is pressed.
  */
 function dynamic_banner_admin_filter_form_submit_filter($form, &$form_state) {
-  $form_state['redirect'] = 'admin/build/banners/list/' . trim($form_state['values']['filter']);
+  $form_state['redirect'] = 'admin/structure/banners/list/' . trim($form_state['values']['filter']);
 }
 
 /**
  * Process filter form submission when the Reset button is pressed.
  */
 function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
-  $form_state['redirect'] = 'admin/build/banners/list';
+  $form_state['redirect'] = 'admin/structure/banners/list';
 }
 
 /**
@@ -488,14 +630,19 @@ function dynamic_banner_admin_filter_get_keys() {
 /**
  * Fetch a specific banner from the database.
  */
-function dynamic_banner_load($dbid) {
-  return db_fetch_array(db_query("SELECT * FROM {dynamic_banner} WHERE dbid = '%d'", $dbid));
+function dynamic_banner_load($dbids) {
+  foreach ($dbids as $nid => &$dbid) {
+    $node_additions = db_fetch_array(db_query("SELECT * FROM {dynamic_banner} WHERE dbid = :dbid", array(':dbid' => $dbid)));
+    foreach ($node_additions as $property => &$value) {
+      $dbid->$property = $value;
+    }
+  }
 }
 
 /**
  * A page that will display a form for changing how dynamic banner will function
  */
-function dynamic_banner_settings($form_state) {
+function dynamic_banner_settings($form, $form_state) {
   // todo need to find a better way of doing this
   $display_setting = variable_get( 'dynamic_banner_display_setting', DEFAULT_OUTPUT );
   if ( $display_setting == 'url' ) {
@@ -518,23 +665,23 @@ function dynamic_banner_settings($form_state) {
   }
 
   $form['display_setting'] = array(
-    '#type'          => 'radios',
-    '#title'         => t('Display Setting'),
-    '#options'       => array(t('url'), t('text'), t('urltext'), t('urllink')),
+    '#type' => 'radios',
+    '#title' => t('Display Setting'),
+    '#options' => array(t('url'), t('text'), t('urltext'), t('urllink')),
     '#default_value' => $display_current_setting,
-    '#description'   => t('What display pattern do you want the module to follow in the template file'),
+    '#description' => t('What display pattern do you want the module to follow in the template file'),
   );
 
   $form['display_errors'] = array(
-    '#type'          => 'radios',
-    '#title'         => t('Display Errors?'),
-    '#options'       => array(t('yes'), t('no')),
+    '#type' => 'radios',
+    '#title' => t('Display Errors?'),
+    '#options' => array(t('yes'), t('no')),
     '#default_value' => $errors_current_setting,
-    '#description'   => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
+    '#description' => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
   );
 
   $form['submit'] = array(
-    '#type'  => 'submit',
+    '#type' => 'submit',
     '#value' => t('Save'),
   );
 

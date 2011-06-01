@@ -1,12 +1,12 @@
 <?php
-
+// $Id$
 
 /**
  * @file
  * The install file of dynamic_banner
  */
 
- /**
+/**
  * Implements hook_schema().
  *
  * Will create the database needed to store the banner connections
@@ -73,7 +73,7 @@ function dynamic_banner_schema() {
  * Implements hook_install().
  */
 function dynamic_banner_install() {
-  drupal_install_schema('dynamic_banner');
+  // The drupal_(un)install_schema functions are called automatically in D7.
 
   // default settings install
   variable_set('dynamic_banner_display_setting', 'urltext');
@@ -86,33 +86,11 @@ function dynamic_banner_install() {
  * Implements hook_uninstall().
  */
 function dynamic_banner_uninstall() {
-  drupal_uninstall_schema('dynamic_banner');
+  // The drupal_(un)install_schema functions are called automatically in D7.
 
   // default settings remove
   variable_del('dynamic_banner_display_setting');
   variable_del('dynamic_banner_display_errors');
 
   drupal_set_message(st('Dynamic Banner Module uninstalled successfully.'), 'warning');
-}
-
-/**
- * Add a new field to store a link to another page, for when clicking on the banner.
- */
-function dynamic_banner_update_6300() {
-  $ret = array();
-  db_add_field($ret, 'dynamic_banner', 'link', array('description' => 'The link to make the banner point to', 'type' => 'varchar', 'length' => '255', 'not null' => FALSE));
-  return $ret;
-}
-
-/**
- * Add a new field to store a mode and time for the current banner on a page.
- */
-function dynamic_banner_update_6400() {
-  $ret = array();
-  db_add_field($ret, 'dynamic_banner', 'mode', array('description' => 'The Mode for this page', 'type' => 'varchar', 'length' => '30', 'not null' => FALSE));
-  db_add_field($ret, 'dynamic_banner', 'start_time', array('description' => 'The Start time for this banner', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE));
-  db_add_field($ret, 'dynamic_banner', 'end_time', array('description' => 'The End time for this banner', 'type' => 'varchar', 'length' => '50', 'not null' => FALSE));
-  $sql = "UPDATE {dynamic_banner} SET mode = 'normal'";
-  db_query($sql);
-  return $ret;
 }

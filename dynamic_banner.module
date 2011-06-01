@@ -1,4 +1,5 @@
 <?php
+// $Id$
 
 /**
  * Distributed under GNU GPL version 3
@@ -10,14 +11,14 @@
 /**
  * Module Defaults
  */
-  define("DEFAULT_OUTPUT", "urltext");
-  define("DEFAULT_ERROR", FALSE);
+define("DEFAULT_OUTPUT", "urltext");
+define("DEFAULT_ERROR", FALSE);
 
 /**
  * Hook Functions (Drupal)
  */
 
- /**
+/**
  * Implements hook_init().
  * Will add the js and css files to display on anypage that the banner block is on
  */
@@ -48,44 +49,60 @@ function dynamic_banner_help($path, $arg) {
         <p>Or when you choose to upload one on the spot the url will be grabbed from that.<p>
         <p>Example img path = sites/all/themes/banners/default.jpg</p>');
       return $output;
-  }// end switch
-}// end help function
+  }
+  // end switch
+}
+// end help function
 
 /**
- * Implements hook_perm().
+ * Implements hook_permission().
  * Permissions for dynamic banner
  */
-function dynamic_banner_perm() {
-  return array('administer dynamic_banner');
-}// end permission function
+function dynamic_banner_permission() {
+  return array(
+    'administer dynamic_banner' => array(
+      'title' => t('administer dynamic_banner'),
+      'description' => t('Allows users to change what banners are displayed and to create thier own'),
+    ),
+  );
+}
+// end permission function
 
 /**
- * TODO on node (PAGE ONLY) creation add in a box to add a banner in like alias does
- * Implements hook_nodeapi().
+ * Implements hook_node_presave().
  */
-function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
-  switch ($op) {
-    case 'presave':
-    // About to be saved (before insert/update)
-      break;
+function dynamic_banner_node_presave($node) {
+  // About to be saved (before insert/update)
+}
 
-    case 'insert':
-    // just made a new page so make that connection
+/**
+ * Implements hook_node_insert()
+ */
+function dynamic_banner_node_insert($node) {
+  // just made a new page so make that connection
+}
 
-    case 'update':
-    // change the old value to the new one
-    // grab the old one search the table and insert (replace)
-      break;
+/**
+ * Implements hook_node_update().
+ */
+function dynamic_banner_node_update($node) {
+  // change the old value to the new one
+  // grab the old one search the table and insert (replace)
+}
 
-    case 'delete':
-    // delete this value from the database
-    // grab what it is then delete from table
-      break;
+/**
+ * Implements hook_node_delete().
+ */
+function dynamic_banner_node_delete($node) {
+  // delete this value from the database
+  // grab what it is then delete from table
+}
 
-    case 'view':
-      break;
-  }// end switch
-}// end node api function
+/**
+ * Implements hook_node_view().
+ */
+function dynamic_banner_node_view($node, $view_mode = 'full') { 
+}
 
 /**
  * Implements hook_menu().
@@ -94,49 +111,50 @@ function dynamic_banner_nodeapi($node, $op, $teaser, $page) {
 function dynamic_banner_menu() {
   $items = array();
   // settings page located in admin pages
-  $items['admin/build/banners/settings'] = array(
-  'title'              => 'Settings',
-  'description'        => 'A page for the dynamic banner settings',
-  'page callback'      => 'drupal_get_form',
-  'page arguments'     => array('dynamic_banner_settings'),
-  'access arguments'   => array('administer dynamic_banner'),
-  'type'               => MENU_LOCAL_TASK,
-  'file'               => 'includes/callbacks.inc',
+  $items['admin/structure/banners/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'A page for the dynamic banner settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dynamic_banner_settings'),
+    'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_TASK,
+    'file' => 'includes/callbacks.inc',
   );
+
   // admin menu located in site building
-  $items['admin/build/banners'] = array(
-    'title'            => 'Dynamic Banner',
-    'description'      => 'Configure the Dynamic Banner.',
-    'page callback'    => 'dynamic_banner_admin_page',
+  $items['admin/structure/banners'] = array(
+    'title' => 'Dynamic Banner',
+    'description' => 'Configure the Dynamic Banner.',
+    'page callback' => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
-    'file'             => 'includes/callbacks.inc',
-  // dont asign a type to make it part of the menu
+    'file' => 'includes/callbacks.inc',
+    // dont asign a type to make it part of the menu
   );
   // part of the path when using querys
-  $items['admin/build/banners/edit'] = array(
-    'title'            => 'Edit Banner',
-    'page callback'    => 'dynamic_banner_admin_edit',
+  $items['admin/structure/banners/edit'] = array(
+    'title' => 'Edit Banner',
+    'page callback' => 'dynamic_banner_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
-    'type'             => MENU_CALLBACK,
-    'file'             => 'includes/callbacks.inc',
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/callbacks.inc',
   );
   // part of the path when using querys
-  $items['admin/build/banners/delete'] = array(
-    'title'            => 'Delete Banner',
-    'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('dynamic_banner_admin_delete_confirm'),
+  $items['admin/structure/banners/delete'] = array(
+    'title' => 'Delete Banner',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('dynamic_banner_admin_delete_confirm'),
     'access arguments' => array('administer dynamic_banner'),
-    'type'             => MENU_CALLBACK,
-    'file'             => 'includes/callbacks.inc',
+    'type' => MENU_CALLBACK,
+    'file' => 'includes/callbacks.inc',
   );
   // the defaulted page to load on menu click
-  $items['admin/build/banners/list'] = array(
+  $items['admin/structure/banners/list'] = array(
     'title' => 'List Banners',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
   // a part of the local menu (top)
-  $items['admin/build/banners/add'] = array(
+  $items['admin/structure/banners/add'] = array(
     'title' => 'Add Banner',
     'page callback' => 'dynamic_banner_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
@@ -144,7 +162,7 @@ function dynamic_banner_menu() {
     'file' => 'includes/callbacks.inc',
   );
   // a part of the local menu (top)
-  $items['admin/build/banners/default'] = array(
+  $items['admin/structure/banners/default'] = array(
     'title' => 'Default Banner',
     'page callback' => 'dynamic_banner_default_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
@@ -153,7 +171,8 @@ function dynamic_banner_menu() {
   );
 
   return $items;
-}// end menu function
+}
+// end menu function
 
 /**
  * Implements hook_theme().
@@ -162,118 +181,125 @@ function dynamic_banner_menu() {
 function dynamic_banner_theme() {
   $theme = array(
     'banner_output' => array(
-      'arguments' => array('url' => NULL, 'text' => NULL, 'link' => NULL, 'display_setting' => NULL, 'display_errors' => NULL),   
+      'variables' => array(
+        'url' => NULL,
+        'text' => NULL,
+        'link' => NULL,
+        'display_setting' => NULL,
+        'display_errors' => NULL,
+      ),
       'path' => drupal_get_path('module', 'dynamic_banner') . '/templates',
       'template' => 'banner_output_template',
     ),
   );
 
   return $theme;
-}// end theme function
+}
+// end theme function
 
 /**
- * Implements hook_block().
+ * Implements hook_block_info().
  */
-function dynamic_banner_block($op = 'list', $delta = 0, $edit = array() ) {
-  switch ($op) {
-    case 'list':
-      $blocks = array();
+function dynamic_banner_block_info() {
+  // TODO Rename block deltas (e.g. delta-0) to readable strings.
+  $blocks = array();
 
-      // TODO: Add sensible default settings
-      $blocks[0] = array(
-        'info' => t('Dynamic Banner Block'),
-        'cache' => BLOCK_NO_CACHE,
-      );
+  // TODO: Add sensible default settings
+  $blocks['Dynamic Banner Block'] = array(
+    'info' => t('Dynamic Banner Block'),
+  );
 
-      return $blocks;
-    case 'configure':
-      break;
-    case 'save':
-      break;
-    case 'view':
-      // store the path of the page the block is loading from, this will sead our first searches
-      $path = drupal_get_path_alias($_GET['q']);
+  return $blocks;
+}
 
-    //echo $path;
+/**
+ * Implements hook_block_view()
+ */
+function dynamic_banner_block_view($delta) {
+  // store the path of the page the block is loading from, this will sead our first searches
+  $path = drupal_get_path_alias($_GET['q']);
 
-      // construct the mysql statement and query the database, does not need to be setup every time
-      $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
+  //echo $path;
 
-      // loop until we find the top down hirarchy
-      do {
-        $result = NULL;
-        // exact match section //
-        $result = db_query($sql, $path);
+  // construct the mysql statement and query the database, does not need to be setup every time
+  $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
 
-        // search for that path string exact match
-        if (db_affected_rows($result) > 0) {
-          $object = db_fetch_object($result);
+  // loop until we find the top down hirarchy
+  do {
+    $result = NULL;
+    // exact match section //
+    // TODO Please convert this statement to the D7 database API syntax.
+    $result = db_query($sql, $path);
 
-          $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-          return array('content' => $content);
-        }
+    // search for that path string exact match
+    if (db_affected_rows($result) > 0) {
+      $object = db_fetch_object($result);
 
-        // wild section //
-        $result = NULL;
-        $wild_search = $path . '*';
-        $result = db_query($sql, $wild_search);
+      $content = theme('banner_output', array('url' => $object->imgurl, 'text' => $object->text, 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+      return array('content' => $content);
+    }
 
-        // search for the wild card string exact match
-        if (db_affected_rows($result) > 0) {
-          $object = db_fetch_object($result);
-          $content = theme('banner_output', $object->imgurl, $object->text, $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-          return array('content' => $content);
-        }
+    // wild section //
+    $result = NULL;
+    $wild_search = $path . '*';
+    // TODO Please convert this statement to the D7 database API syntax.
+    $result = db_query($sql, $wild_search);
 
-        // random section //
-        $result = NULL;
-        $random_search = $path . '!';
-        $result = db_query($sql, $random_search);
+    // search for the wild card string exact match
+    if (db_affected_rows($result) > 0) {
+      $object = db_fetch_object($result);
+      $content = theme('banner_output', array('url' => $object->imgurl, 'text' => $object->text, 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+      return array('content' => $content);
+    }
 
-        // search for that random string exact match
-        if (db_affected_rows($result) > 0) {
-          $object = db_fetch_object($result);
-          // get extra stuff associated with randoms
-          $images = $object->imgurl;
-          // support for random text if needed
-          $texts = $object->text;
-          // explode comma seperated images and text
-          $image = explode(",", $images);
-          // support for random text if needed
-          $text = explode(",", $texts);
+    // random section //
+    $result = NULL;
+    $random_search = $path . '!';
+    // TODO Please convert this statement to the D7 database API syntax.
+    $result = db_query($sql, $random_search);
 
-          // count how many there are
-          $count = count($image);
+    // search for that random string exact match
+    if (db_affected_rows($result) > 0) {
+      $object = db_fetch_object($result);
+      // get extra stuff associated with randoms
+      $images = $object->imgurl;
+      // support for random text if needed
+      $texts = $object->text;
+      // explode comma seperated images and text
+      $image = explode(",", $images);
+      // support for random text if needed
+      $text = explode(",", $texts);
 
-          // handle the random with ints (deal with array start at 0 problems)
-          // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
-          $random = ($count - rand(0, $count - 1)) - 1;
+      // count how many there are
+      $count = count($image);
 
-          // remember text is optional
-          $content = theme('banner_output', $image[$random], $text[$random], $object->link, variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-          return array('content' => $content);
-        }
+      // handle the random with ints (deal with array start at 0 problems)
+      // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
+      $random = ($count - rand(0, $count - 1)) - 1;
 
-        // chop off more of the string and try again, it is key to not modify the path before this point
-        $last_slash_position = strrpos($path, "/"); // returns false if not found
-        if ($last_slash_position !== FALSE) {
-          $path = drupal_substr($path, 0, $last_slash_position);
-        }
-        else {
-          $path = FALSE;
-        }
-   
-      } while ($path != FALSE);
+      // remember text is optional
+      $content = theme('banner_output', array('url' => $image[$random], 'text' => $text[$random], 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+      return array('content' => $content);
+    }
 
-      // well no banner was found for this specific page if we have a default banner then display it
-      $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'";// bad way of storing it
-      $result = db_query($sql, $path);
-      // for every resultant row (SHOULD ALWAYS BE ONE)
-      while ($row = db_fetch_array($result)) {
-        $content = theme('banner_output', $row['imgurl'], $row['text'], $row['link'], variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-        return array('content' => $content);
-      }
+    // chop off more of the string and try again, it is key to not modify the path before this point
+    $last_slash_position = strrpos($path, "/"); // returns false if not found
+    if ($last_slash_position !== FALSE) {
+      $path = drupal_substr($path, 0, $last_slash_position);
+    }
+    else {
+      $path = FALSE;
+    }
 
-      break; // just encase something went wrong
-  }// end switch
-}// end block function
+  } while ($path != FALSE);
+
+  // well no banner was found for this specific page if we have a default banner then display it
+  $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'"; // bad way of storing it
+  $result = db_query("SELECT * FROM {dynamic_banner} WHERE dbid = :dbid", array(':dbid' => '999', '' => $path));
+  // for every resultant row (SHOULD ALWAYS BE ONE)
+  while ($row = db_fetch_array($result)) {
+    $content = theme('banner_output', array('url' => $row['imgurl'], 'text' => $row['text'], 'link' => $row['link'], 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+    return array('content' => $content);
+  }
+ // just encase something went wrong
+}
