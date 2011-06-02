@@ -12,45 +12,33 @@
  * When filter key passed, perform a standard search on the given key,
  * and return the list of matching URL aliases.
  */
-function dynamic_banner_admin_page($keys = NULL) {
+function dynamic_banner_admin_page() {
   $output = ""; // default 
 
   // grab the filter if the user set one
   $filter = dynamic_banner_build_filter_query();
   
   // Add the filter form above the overview table.
-  $output = drupal_get_form('dynamic_banner_admin_filter_form');
-  //$count = db_result(db_query("SELECT COUNT(*) FROM {dynamic_banner}"));
-
-  /*
-  if ($keys) {
-    // Replace wildcards with MySQL/PostgreSQL wildcards
-    $keys = preg_replace('!\*+!', '%', $keys);
-    $sql = "SELECT * FROM {dynamic_banner} WHERE path LIKE '%%%s%%'";
-  }
-  else {
-    $sql = 'SELECT * FROM {dynamic_banner}';
-  }*/
-  
+  //$output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
   
   // construct the headers of the table
   $header = array(
     array(
       'data' => t('Url'),
-      'field' => 'path',
+      'field' => 'd.path',
       'sort' => 'asc',
     ),
     array(
       'data' => t('ImgUrl'),
-      'field' => 'imgurl',
+      'field' => 'd.imgurl',
     ),
     array(
       'data' => t('Text'),
-      'field' => 'text',
+      'field' => 'd.text',
     ),
     array(
       'data' => t('Link'),
-      'field' => 'link',
+      'field' => 'd.link',
     ),
     array(
       'data' => t('Operations'),
@@ -59,14 +47,9 @@ function dynamic_banner_admin_page($keys = NULL) {
   );
   
 
-  $query = db_select('dynamic_banner', 'd'); // alias the table name to d
-  $query->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time')) // Select the specified fields from the node table.
-    ->extend('PagerDefault')
-    ->extend('TableSort')
-    ->distinct() // probably dont need this
-    //->condition('n.type', 'page') // Only load nodes with the type page.
-    //->range(0, 20); // Load the first 5 rows.
-    ->limit(5)
+  $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort'); // alias the table name to d
+  $query->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time')) // Select the specified fields from the node table. 
+    ->limit(20) // Load the first 5 rows.
     ->orderByHeader($header);
     
   if (!empty($filter['where'])) {
@@ -74,35 +57,30 @@ function dynamic_banner_admin_page($keys = NULL) {
   }
   $result = $query->execute();
 
-
   print_r($query->__toString());
-
-  // allows us to sort the table
-  //$sql .= tablesort_sql($header);
-  // get the current page of results
-  //$result = pager_query($sql, 50, 0, NULL, $keys);
 
   // start constructing the individual rows
   $rows = array();
   foreach ($result as $data) {
     if ( $data->dbid == 999) {
-      $row = array(check_plain('DEFAULT'), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/structure/banners/default"), l(t('delete'), "admin/structure/banners/delete/$data->dbid"));
+      $rows[] = array('data' => 
+        array('DEFAULT',
+        $data->imgurl,
+        $data->text,
+        $data->link,
+        l(t('edit'), "admin/structure/banners/default"),
+        l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)));
     }
     else {
-      $row = array(check_plain($data->path), check_plain($data->imgurl), check_plain($data->text), check_plain($data->link), l(t('edit'), "admin/structure/banners/edit/$data->dbid"), l(t('delete'), "admin/structure/banners/delete/$data->dbid"));
+      $rows[] = array('data' => 
+        array($data->path,
+        $data->imgurl,
+        $data->text,
+        $data->link,
+        l(t('edit'), "admin/structure/banners/edit/$data->dbid"),
+        l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)));
     }
-    $rows[] = $row;
   }
-
-  // deal with an empty set
-  /*if (empty($rows)) {
-    $empty_message = $keys ? t('No Banners Found.') : t('No Banner Urls found.');
-    $rows[] = array(array('data' => $empty_message));
-  }*/
-
-  // display the information
-  //$output .= theme('table', array('header' => $header, 'rows' => $rows));
-  //$output .= theme('pager', array('tags' => NULL, 'element' => 0));
   
   $output['dynamic_banner_table'] = array(
     '#theme' => 'table', 
@@ -137,6 +115,10 @@ function dynamic_banner_admin_edit($dbid = 0) {
  * Needed for the filtering of the banners page
  */
 function dynamic_banner_build_filter_query() {
+  if (empty($_SESSION['dynamic_banner_filter'])) {
+    return;
+  }
+
   $filters = dynamic_banner_filters();
 
   // Build query
@@ -164,7 +146,10 @@ function dynamic_banner_build_filter_query() {
  */
 function dynamic_banner_filters() {
   $filters = array();
-  $filters['type'] = array('title' => t('Type'), 'where' => 'd.url ?', 'options' => array('NOT LIKE %* AND NOT LIKE %!','LIKE %*','LIKE %!'));
+  $filters['type'] = array(
+    'title' => t('Type'),
+    'where' => 'd.url ?',
+    'options' => array('NOT LIKE %* AND NOT LIKE %!','LIKE %*','LIKE %!'));
   return $filters;
 }
 
@@ -551,8 +536,6 @@ function dynamic_banner_admin_delete_confirm_submit($form, &$form_state) {
  * Post-confirmation; delete a Banner
  */
 function dynamic_banner_admin_delete($dbid = 0) {
-  // TODO Please review the conversion of this statement to the D7 database API syntax.
-  /* db_query('DELETE FROM {dynamic_banner} WHERE dbid = %d', $dbid) */
   db_delete('dynamic_banner')->condition('dbid', $dbid)->execute();
   drupal_set_message(t('The banner has been deleted, the image still exists though'));
 }
@@ -563,7 +546,7 @@ function dynamic_banner_admin_delete($dbid = 0) {
  * ingroup forms
  * see dynamic_banner_admin_filter_form_submit()
  */
-function dynamic_banner_admin_filter_form($form, &$form_state, $keys = '') {
+function dynamic_banner_admin_filter_form($form) {
   $filters = dynamic_banner_filters();
   
   $form['filters'] = array(
@@ -605,10 +588,33 @@ function dynamic_banner_admin_filter_form($form, &$form_state, $keys = '') {
 }
 
 /**
- * Process filter form submission when the Filter button is pressed.
+ * Validate result from dynamic banner administrative filter form.
  */
-function dynamic_banner_admin_filter_form_submit_filter($form, &$form_state) {
-  $form_state['redirect'] = 'admin/structure/banners/list/' . trim($form_state['values']['filter']);
+function dynamic_banner_admin_filter_form_validate($form, &$form_state) {
+  if ($form_state['values']['op'] == t('Filter') && empty($form_state['values']['type'])) {
+    form_set_error('type', t('You must select something to filter by.'));
+  }
+}
+
+/**
+ * Process result from dynamic banner administrative filter form.
+ */
+function dynamic_banner_admin_filter_form_submit($form, &$form_state) {
+  $op = $form_state['values']['op'];
+  $filters = dblog_filters();
+  switch ($op) {
+    case t('Filter'):
+      foreach ($filters as $name => $filter) {
+        if (isset($form_state['values'][$name])) {
+          $_SESSION['dynamic_banner_filter'][$name] = $form_state['values'][$name];
+        }
+      }
+      break;
+    case t('Reset'):
+      $_SESSION['dynamic_banner_filter'] = array();
+      break;
+  }
+  return 'admin/structure/banners/list/';
 }
 
 /**
@@ -616,15 +622,6 @@ function dynamic_banner_admin_filter_form_submit_filter($form, &$form_state) {
  */
 function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
   $form_state['redirect'] = 'admin/structure/banners/list';
-}
-
-/**
- * Helper function for grabbing filter keys.
- */
-function dynamic_banner_admin_filter_get_keys() {
-  // Extract keys as remainder of path
-  $path = explode('/', $_GET['q'], 5);
-  return count($path) == 5 ? $path[4] : '';
 }
 
 /**

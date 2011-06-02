@@ -117,7 +117,6 @@ function dynamic_banner_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('dynamic_banner_settings'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_TASK,
     'file' => 'includes/callbacks.inc',
   );
 
@@ -128,14 +127,12 @@ function dynamic_banner_menu() {
     'page callback' => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
     'file' => 'includes/callbacks.inc',
-    // dont asign a type to make it part of the menu
   );
   // part of the path when using querys
   $items['admin/structure/banners/edit'] = array(
     'title' => 'Edit Banner',
     'page callback' => 'dynamic_banner_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_CALLBACK,
     'file' => 'includes/callbacks.inc',
   );
   // part of the path when using querys
@@ -144,13 +141,11 @@ function dynamic_banner_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('dynamic_banner_admin_delete_confirm'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_CALLBACK,
     'file' => 'includes/callbacks.inc',
   );
   // the defaulted page to load on menu click
   $items['admin/structure/banners/list'] = array(
     'title' => 'List Banners',
-    'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
   );
   // a part of the local menu (top)
@@ -158,7 +153,6 @@ function dynamic_banner_menu() {
     'title' => 'Add Banner',
     'page callback' => 'dynamic_banner_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_TASK,
     'file' => 'includes/callbacks.inc',
   );
   // a part of the local menu (top)
@@ -166,7 +160,6 @@ function dynamic_banner_menu() {
     'title' => 'Default Banner',
     'page callback' => 'dynamic_banner_default_admin_edit',
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_TASK,
     'file' => 'includes/callbacks.inc',
   );
 
@@ -222,49 +215,57 @@ function dynamic_banner_block_view($delta) {
   //echo $path;
 
   // construct the mysql statement and query the database, does not need to be setup every time
-  $sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
+  //$sql = "SELECT * FROM {dynamic_banner} WHERE path = '%s'";
 
   // loop until we find the top down hirarchy
   do {
     $result = NULL;
     // exact match section //
-    // TODO Please convert this statement to the D7 database API syntax.
-    $result = db_query($sql, $path);
+    
+    // create and execute query
+    $query = db_select('dynamic_banner', 'd');
+    $query->condition('path', $path)
+    ->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time'));
+    $result = $query->execute();
 
     // search for that path string exact match
-    if (db_affected_rows($result) > 0) {
-      $object = db_fetch_object($result);
-
-      $content = theme('banner_output', array('url' => $object->imgurl, 'text' => $object->text, 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+    if ($result) {
+      $content['currently_displayed_banner'] = theme('banner_output', array('url' => $result->imgurl, 'text' => $result->text, 'link' => $result->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
       return array('content' => $content);
     }
 
     // wild section //
     $result = NULL;
     $wild_search = $path . '*';
-    // TODO Please convert this statement to the D7 database API syntax.
-    $result = db_query($sql, $wild_search);
+    
+    // create and execute query
+    $query = db_select('dynamic_banner', 'd');
+    $query->condition('path', $wild_search)
+      ->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time'));
+    $result = $query->execute();
 
     // search for the wild card string exact match
-    if (db_affected_rows($result) > 0) {
-      $object = db_fetch_object($result);
-      $content = theme('banner_output', array('url' => $object->imgurl, 'text' => $object->text, 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+    if ($result) {
+      $content['currently_displayed_banner'] = theme('banner_output', array('url' => $result->imgurl, 'text' => $result->text, 'link' => $result->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
       return array('content' => $content);
     }
 
     // random section //
     $result = NULL;
     $random_search = $path . '!';
-    // TODO Please convert this statement to the D7 database API syntax.
-    $result = db_query($sql, $random_search);
+    
+    // create and execute query
+    $query = db_select('dynamic_banner', 'd');
+    $query->condition('path', $random_search)
+      ->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time'));
+    $result = $query->execute();
 
     // search for that random string exact match
-    if (db_affected_rows($result) > 0) {
-      $object = db_fetch_object($result);
+    if ($result) {
       // get extra stuff associated with randoms
-      $images = $object->imgurl;
+      $images = $result->imgurl;
       // support for random text if needed
-      $texts = $object->text;
+      $texts = $result->text;
       // explode comma seperated images and text
       $image = explode(",", $images);
       // support for random text if needed
@@ -278,7 +279,7 @@ function dynamic_banner_block_view($delta) {
       $random = ($count - rand(0, $count - 1)) - 1;
 
       // remember text is optional
-      $content = theme('banner_output', array('url' => $image[$random], 'text' => $text[$random], 'link' => $object->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+      $content['currently_displayed_banner'] = theme('banner_output', array('url' => $image[$random], 'text' => $text[$random], 'link' => $result->link, 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
       return array('content' => $content);
     }
 
@@ -294,11 +295,18 @@ function dynamic_banner_block_view($delta) {
   } while ($path != FALSE);
 
   // well no banner was found for this specific page if we have a default banner then display it
-  $sql = "SELECT * FROM {dynamic_banner} WHERE dbid = '999'"; // bad way of storing it
-  $result = db_query("SELECT * FROM {dynamic_banner} WHERE dbid = :dbid", array(':dbid' => '999', '' => $path));
-  // for every resultant row (SHOULD ALWAYS BE ONE)
-  while ($row = db_fetch_array($result)) {
-    $content = theme('banner_output', array('url' => $row['imgurl'], 'text' => $row['text'], 'link' => $row['link'], 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
+
+  /////////////////////////////////// this will soon be stored in the variables table ////////////////// TODO
+  
+  // create and execute query
+  $query = db_select('dynamic_banner', 'd');
+  $query->condition('dbid', 999)
+    ->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time'));
+  $result = $query->execute();
+  
+  // for the resultant row (SHOULD ALWAYS BE ONE)
+  if ($result) {
+    $content['currently_displayed_banner'] = theme('banner_output', array('url' => $result['imgurl'], 'text' => $result['text'], 'link' => $result['link'], 'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT), 'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR)));
     return array('content' => $content);
   }
  // just encase something went wrong
