@@ -49,7 +49,7 @@ function dynamic_banner_admin_page() {
 
   $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort'); // alias the table name to d
   $query->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time')) // Select the specified fields from the node table. 
-    ->limit(20) // Load the first 5 rows.
+    ->limit(20) // Load the first 20 rows.
     ->orderByHeader($header);
     
   if (!empty($filter['where'])) {
@@ -57,7 +57,7 @@ function dynamic_banner_admin_page() {
   }
   $result = $query->execute();
 
-  print_r($query->__toString());
+  dpm($result);
 
   // start constructing the individual rows
   $rows = array();
