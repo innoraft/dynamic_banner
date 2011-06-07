@@ -18,7 +18,7 @@ function dynamic_banner_admin_page() {
   // grab the filter if the user set one
   $filter = dynamic_banner_build_filter_query();
   
-  // Add the filter form above the overview table.
+  // Add the filter form above the overview table. // fix bug //
   //$output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
   
   // construct the headers of the table
@@ -45,10 +45,9 @@ function dynamic_banner_admin_page() {
       'colspan' => '2',
     ),
   );
-  
 
   $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort'); // alias the table name to d
-  $query->fields('d', array('dbid', 'path', 'imgurl', 'text', 'link', 'mode', 'start_time', 'end_time')) // Select the specified fields from the node table. 
+  $query->fields('d') // Select all fields from the node table. 
     ->limit(20) // Load the first 20 rows.
     ->orderByHeader($header);
     
@@ -100,8 +99,8 @@ function dynamic_banner_admin_page() {
  */
 function dynamic_banner_admin_edit($dbid = 0) {
   if ($dbid) {
-    $banner = dynamic_banner_load($dbid);
-    drupal_set_title($banner['path']);
+    $banner = dynamic_banner_load_banner($dbid);
+    drupal_set_title($banner->path);
     $output = drupal_get_form('dynamic_banner_admin_form', $banner);
   }
   else {
@@ -158,8 +157,8 @@ function dynamic_banner_filters() {
  */
 function dynamic_banner_default_admin_edit($dbid = 999) {
   if ($dbid) {
-    $banner = dynamic_banner_load($dbid);
-    drupal_set_title($banner['path']);
+    $banner = dynamic_banner_load_banner($dbid);
+    drupal_set_title($banner->path);
     $output = drupal_get_form('dynamic_banner_default_admin_form', $banner);
   }
   else {
@@ -508,14 +507,14 @@ function dynamic_banner_admin_form_submit($form, &$form_state) {
  * Menu callback; confirms deleting a Banner
  */
 function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
-  $path = dynamic_banner_load($dbid);
+  $banner = dynamic_banner_load_banner($dbid);
   if (user_access('administer dynamic_banner')) {
     $form['dbid'] = array(
       '#type' => 'value',
       '#value' => $dbid,
     );
     $output = confirm_form($form, 
-      t('Are you sure you want to delete banner %title?', array('%title' => $path['path'])), 
+      t('Are you sure you want to delete banner %title?', array('%title' => $banner->path)), 
       isset($_GET['destination']) ? $_GET['destination'] : 'admin/structure/banners');
   }
   return $output;
@@ -627,13 +626,16 @@ function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
 /**
  * Fetch a specific banner from the database.
  */
-function dynamic_banner_load($dbids) {
-  foreach ($dbids as $nid => &$dbid) {
-    $node_additions = db_fetch_array(db_query("SELECT * FROM {dynamic_banner} WHERE dbid = :dbid", array(':dbid' => $dbid)));
-    foreach ($node_additions as $property => &$value) {
-      $dbid->$property = $value;
-    }
+function dynamic_banner_load_banner($dbid) {
+  $query = db_select('dynamic_banner', 'd');
+  $query->condition('d.dbid', $dbid, '=')
+    ->fields('d');
+  $result = $query->execute()->fetchObject();
+  
+  if ($result) {
+    return $result;
   }
+  return NULL;
 }
 
 /**

@@ -13,6 +13,7 @@
  */
 define("DEFAULT_OUTPUT", "urltext");
 define("DEFAULT_ERROR", FALSE);
+define("DEFAULT_BLOCK_NAME", "Dynamic Banner Block");
 
 /**
  * Hook Functions (Drupal)
@@ -189,18 +190,15 @@ function dynamic_banner_theme() {
 
   return $theme;
 }
-// end theme function
 
 /**
  * Implements hook_block_info().
  */
 function dynamic_banner_block_info() {
-  // TODO Rename block deltas (e.g. delta-0) to readable strings.
   $blocks = array();
 
-  // TODO: Add sensible default settings
-  $blocks['Dynamic Banner Block'] = array(
-    'info' => t('Dynamic Banner Block'),
+  $blocks['DEFAULT_BLOCK_NAME'] = array(
+    'info' => t('The default display of Dynamic Banner'),
   );
 
   return $blocks;
@@ -210,124 +208,128 @@ function dynamic_banner_block_info() {
  * Implements hook_block_view()
  */
 function dynamic_banner_block_view($delta) {
-  // store the path of the page the block is loading from, this will sead our first searches
-  $path = drupal_get_path_alias($_GET['q']);
-    dpm($path);
-  //$path = 'home';
+  if ($delta == DEFAULT_BLOCK_NAME) {
+      // store the path of the page the block is loading from, this will sead our first searches
+      $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
+      
+      // debug statements enable these if you want to see the bahvior of these methods or if you want to defualt a path
+      //dpm($path);
+      //dpm($_GET['q']);
+      //$path = 'home';
 
-  // loop until we find the top down hirarchy
-  do {
-    $result = NULL;
-    // exact match section //
-    // create and execute query
-    $query = db_select('dynamic_banner', 'd');
-    $query->condition('d.path', $path, '=')
-      ->fields('d');
-    $result = $query->execute()->fetchObject();
+      // loop until we find the top down hirarchy
+      do {
+        $result = NULL;
+        // exact match section //
+        // create and execute query
+        $query = db_select('dynamic_banner', 'd');
+        $query->condition('d.path', $path, '=')
+          ->fields('d');
+        $result = $query->execute()->fetchObject();
 
-    //dpm($result);
-    
-    // search for that path string exact match
-    if ($result) {
-      $variables = array(
+        //dpm($result);
+        
+        // search for that path string exact match
+        if ($result) {
+          $variables = array(
+              'url' => $result->imgurl,
+              'text' => $result->text,
+              'link' => $result->link,
+              'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
+              'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => theme('banner_output', $variables));
+        }
+
+        // wild section //
+        $result = NULL;
+        $wild_search = $path . '*';
+        
+        // create and execute query
+        $query = db_select('dynamic_banner', 'd');
+        $query->condition('d.path', $wild_search, '=')
+          ->fields('d');
+        $result = $query->execute()->fetchObject();
+
+        // search for the wild card string exact match
+        if ($result) {
+          $variables = array(
+            'url' => $result->imgurl,
+            'text' => $result->text,
+            'link' => $result->link,
+            'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
+            'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => theme('banner_output', $variables));
+        }
+
+        // random section //
+        $result = NULL;
+        $random_search = $path . '!';
+        
+        // create and execute query
+        $query = db_select('dynamic_banner', 'd');
+        $query->condition('d.path', $random_search, '=')
+          ->fields('d');
+        $result = $query->execute()->fetchObject();
+
+        // search for that random string exact match
+        if ($result) {
+          // get extra stuff associated with randoms
+          $images = $result->imgurl;
+          // support for random text if needed
+          $texts = $result->text;
+          // explode comma seperated images and text
+          $image = explode(",", $images);
+          // support for random text if needed
+          $text = explode(",", $texts);
+
+          // count how many there are
+          $count = count($image);
+
+          // handle the random with ints (deal with array start at 0 problems)
+          // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
+          $random = ($count - rand(0, $count - 1)) - 1;
+
+          // remember text is optional
+          $variables = array(
+            'url' => $image[$random],
+            'text' => $text[$random],
+            'link' => $result->link,
+            'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
+            'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          return array('content' => theme('banner_output', $variables));
+        }
+
+        // chop off more of the string and try again, it is key to not modify the path before this point
+        $last_slash_position = strrpos($path, "/"); // returns false if not found
+        if ($last_slash_position !== FALSE) {
+          $path = drupal_substr($path, 0, $last_slash_position);
+        }
+        else {
+          $path = FALSE;
+        }
+
+      } while ($path != FALSE);
+
+      // well no banner was found for this specific page if we have a default banner then display it
+
+      /////////////////////////////////// this will soon be stored in the variables table ////////////////// TODO
+      
+      // create and execute query
+      $query = db_select('dynamic_banner', 'd');
+      $query->condition('d.dbid', 999, '=')
+        ->fields('d');
+      $result = $query->execute()->fetchObject();
+      
+      // for the resultant row (SHOULD ALWAYS BE ONE)
+      if ($result) {
+        $variables = array(
           'url' => $result->imgurl,
           'text' => $result->text,
           'link' => $result->link,
           'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
           'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-      return array('content' => theme('banner_output', $variables));
-    }
-
-    // wild section //
-    $result = NULL;
-    $wild_search = $path . '*';
-    
-    // create and execute query
-    $query = db_select('dynamic_banner', 'd');
-    $query->condition('d.path', $wild_search, '=')
-      ->fields('d');
-    $result = $query->execute()->fetchObject();
-
-    // search for the wild card string exact match
-    if ($result) {
-      $variables = array(
-        'url' => $result->imgurl,
-        'text' => $result->text,
-        'link' => $result->link,
-        'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-        'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-      return array('content' => theme('banner_output', $variables));
-    }
-
-    // random section //
-    $result = NULL;
-    $random_search = $path . '!';
-    
-    // create and execute query
-    $query = db_select('dynamic_banner', 'd');
-    $query->condition('d.path', $random_search, '=')
-      ->fields('d');
-    $result = $query->execute()->fetchObject();
-
-    // search for that random string exact match
-    if ($result) {
-      // get extra stuff associated with randoms
-      $images = $result->imgurl;
-      // support for random text if needed
-      $texts = $result->text;
-      // explode comma seperated images and text
-      $image = explode(",", $images);
-      // support for random text if needed
-      $text = explode(",", $texts);
-
-      // count how many there are
-      $count = count($image);
-
-      // handle the random with ints (deal with array start at 0 problems)
-      // so if there are 3 elements in the array it is 0-2 not 1-3 so generate random based on that
-      $random = ($count - rand(0, $count - 1)) - 1;
-
-      // remember text is optional
-      $variables = array(
-        'url' => $image[$random],
-        'text' => $text[$random],
-        'link' => $result->link,
-        'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-        'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-      return array('content' => theme('banner_output', $variables));
-    }
-
-    // chop off more of the string and try again, it is key to not modify the path before this point
-    $last_slash_position = strrpos($path, "/"); // returns false if not found
-    if ($last_slash_position !== FALSE) {
-      $path = drupal_substr($path, 0, $last_slash_position);
-    }
-    else {
-      $path = FALSE;
-    }
-
-  } while ($path != FALSE);
-
-  // well no banner was found for this specific page if we have a default banner then display it
-
-  /////////////////////////////////// this will soon be stored in the variables table ////////////////// TODO
-  
-  
-  // create and execute query
-  $query = db_select('dynamic_banner', 'd');
-  $query->condition('d.dbid', 999, '=')
-    ->fields('d');
-  $result = $query->execute()->fetchObject();
-  
-  // for the resultant row (SHOULD ALWAYS BE ONE)
-  if ($result) {
-    $variables = array(
-      'url' => $result->imgurl,
-      'text' => $result->text,
-      'link' => $result->link,
-      'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-      'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
-    return array('content' => theme('banner_output', $variables));
+        return array('content' => theme('banner_output', $variables));
+      }
+    // just encase something went wrong
   }
- // just encase something went wrong
 }
