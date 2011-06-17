@@ -13,14 +13,14 @@
  * and return the list of matching URL aliases.
  */
 function dynamic_banner_admin_page() {
-  $output = ""; // default 
+  $output = ""; // default
 
   // grab the filter if the user set one
   $filter = dynamic_banner_build_filter_query();
   
   // Add the filter form above the overview table. // fix bug //
   //$output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
-  
+
   // construct the headers of the table
   $header = array(
     array(
@@ -47,10 +47,10 @@ function dynamic_banner_admin_page() {
   );
 
   $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort'); // alias the table name to d
-  $query->fields('d') // Select all fields from the node table. 
+  $query->fields('d') // Select all fields from the node table.
     ->limit(20) // Load the first 20 rows.
     ->orderByHeader($header);
-    
+
   if (!empty($filter['where'])) {
     $query->where($filter['where'], $filter['args']);
   }
@@ -62,7 +62,7 @@ function dynamic_banner_admin_page() {
   $rows = array();
   foreach ($result as $data) {
     if ( $data->dbid == 999) {
-      $rows[] = array('data' => 
+      $rows[] = array('data' =>
         array('DEFAULT',
         $data->imgurl,
         $data->text,
@@ -71,7 +71,7 @@ function dynamic_banner_admin_page() {
         l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)));
     }
     else {
-      $rows[] = array('data' => 
+      $rows[] = array('data' =>
         array($data->path,
         $data->imgurl,
         $data->text,
@@ -80,12 +80,12 @@ function dynamic_banner_admin_page() {
         l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)));
     }
   }
-  
+
   $output['dynamic_banner_table'] = array(
-    '#theme' => 'table', 
-    '#header' => $header, 
-    '#rows' => $rows, 
-    //'#attributes' => array('id' => 'admin-dblog'), 
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    //'#attributes' => array('id' => 'admin-dblog'),
     '#empty' => t('No Banners Found.'),
   );
   $output['dynamic_banner_pager'] = array('#theme' => 'pager');
@@ -135,7 +135,7 @@ function dynamic_banner_build_filter_query() {
   $where = !empty($where) ? implode(' AND ', $where) : '';
 
   return array(
-    'where' => $where, 
+    'where' => $where,
     'args' => $args,
   );
 }
@@ -449,7 +449,6 @@ function dynamic_banner_set_banner($path = NULL, $imgurl = NULL, $text = NULL, $
      } */
     // the default
     if ( $dbid == 999 ) {
-      /* db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link, dbid) VALUES ('%s', '%s', '%s', '%s, '%d')", $path, $imgurl, $text, $link, $dbid) */
       $id = db_insert('dynamic_banner')->fields(array(
         'path' => $path,
         'imgurl' => $imgurl,
@@ -460,7 +459,6 @@ function dynamic_banner_set_banner($path = NULL, $imgurl = NULL, $text = NULL, $
     }
     else {
       // Update the existing banner.
-      /* db_query("UPDATE {dynamic_banner} SET path = '%s', imgurl = '%s', text = '%s', link = '%s' WHERE dbid = %d", $path, $imgurl, $text, $link, $dbid) */
       db_update('dynamic_banner')->fields(array(
         'path' => $path,
         'imgurl' => $imgurl,
@@ -480,7 +478,6 @@ function dynamic_banner_set_banner($path = NULL, $imgurl = NULL, $text = NULL, $
      }
      else {*/
     // A new alias. Add it to the database.
-    /* db_query("INSERT INTO {dynamic_banner} (path, imgurl, text, link) VALUES ('%s', '%s', '%s', '%s')", $path, $imgurl, $text, $link) */
     $id = db_insert('dynamic_banner')->fields(array(
       'path' => $path,
       'imgurl' => $imgurl,
@@ -513,8 +510,8 @@ function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
       '#type' => 'value',
       '#value' => $dbid,
     );
-    $output = confirm_form($form, 
-      t('Are you sure you want to delete banner %title?', array('%title' => $banner->path)), 
+    $output = confirm_form($form,
+      t('Are you sure you want to delete banner %title?', array('%title' => $banner->path)),
       isset($_GET['destination']) ? $_GET['destination'] : 'admin/structure/banners');
   }
   return $output;
@@ -547,38 +544,38 @@ function dynamic_banner_admin_delete($dbid = 0) {
  */
 function dynamic_banner_admin_filter_form($form) {
   $filters = dynamic_banner_filters();
-  
+
   $form['filters'] = array(
-    '#type' => 'fieldset', 
-    '#title' => t('Filter dynamic banner'), 
-    '#collapsible' => TRUE, 
+    '#type' => 'fieldset',
+    '#title' => t('Filter dynamic banner'),
+    '#collapsible' => TRUE,
     '#collapsed' => empty($_SESSION['dynamic_banner_filter']),
   );
-  
+
   foreach ($filters as $key => $filter) {
     $form['filters']['status'][$key] = array(
-      '#title' => $filter['title'], 
-      '#type' => 'select', 
-      '#multiple' => TRUE, 
-      '#size' => 8, 
+      '#title' => $filter['title'],
+      '#type' => 'select',
+      '#multiple' => TRUE,
+      '#size' => 8,
       '#options' => $filter['options'],
     );
     if (!empty($_SESSION['dynamic_banner_filter'][$key])) {
       $form['filters']['status'][$key]['#default_value'] = $_SESSION['dynamic_banner_filter'][$key];
     }
   }
-  
+
   $form['filters']['actions'] = array(
-    '#type' => 'actions', 
+    '#type' => 'actions',
     '#attributes' => array('class' => array('container-inline')),
   );
   $form['filters']['actions']['submit'] = array(
-    '#type' => 'submit', 
+    '#type' => 'submit',
     '#value' => t('Filter'),
   );
   if (!empty($_SESSION['dynamic_banner_filter'])) {
     $form['filters']['actions']['reset'] = array(
-      '#type' => 'submit', 
+      '#type' => 'submit',
       '#value' => t('Reset'),
     );
   }
@@ -631,7 +628,7 @@ function dynamic_banner_load_banner($dbid) {
   $query->condition('d.dbid', $dbid, '=')
     ->fields('d');
   $result = $query->execute()->fetchObject();
-  
+
   if ($result) {
     return $result;
   }
