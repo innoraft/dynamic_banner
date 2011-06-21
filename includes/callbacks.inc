@@ -125,69 +125,74 @@ function dynamic_banner_build_filter_query() {
 function dynamic_banner_filters() {
   $filters = array();
   $filters['type'] = array(
-    'title' => t('Type'),
-    'where' => 'd.url ?',
+    'title'   => t('Type'),
+    'where'   => 'd.url ?',
     'options' => array('NOT LIKE %* AND NOT LIKE %!','LIKE %*','LIKE %!'));
   return $filters;
 }
 
 /**
- * Menu callback; handles pages for creating and editing a banner ()
- * if dbid = 0 then a null banner will be loaded
+ * The main form dealing with dynamic banner 
+ * There is now only one form for dynamic banner to deal with unlink in the d6 version
+ * INPUT: arg(4) is from the url path of this form
  */
-function dynamic_banner_admin_edit() {
-  $dbid = arg(4); // the last portion of the url 
-  //dpm($dbid);
+function dynamic_banner_admin_form($form, &$form_state) {
+  $dbid = arg(4); // the last portion of the url there must be a better way of doing this
+  
+  // default the variable here
+  $banner = NULL;
+  
   if ($dbid != NULL) {
     if ($dbid == 0) {
-      $banner = NULL;
       drupal_set_title(t('New Banner'));
     }
     else {
       $banner = dynamic_banner_load_banner($dbid);
-      dpm($banner);
       drupal_set_title($banner->path);
     }
-
-    // grab a form from the api with the current banner loaded
-    $output = drupal_get_form('dynamic_banner_admin_form');
-
-    return $output;
   }
-
-  // watchdog? maybe
-  return NULL;
-}
-
-/**
- * The main form dealing with dynamic banner 
- * There is now only one form for dynamic banner to deal with unlink in the d6 version
- * INPUT: $edit is the banner being edited leave blank for a new banner entry
- */
-function dynamic_banner_admin_form($form, &$form_state, $edit = NULL) {
-  $dbid = arg(4); // the last portion of the url 
-  dpm($dbid);
   //$form['banner'] = $edit;
   //$form['banner']['#access'] = FALSE;
 
-  /********* TODO MAKE LOGIC FOR IMAGE UPLOADER AND CHOOSER!!! *************/
+  $form['#attributes'] = array('enctype' => "multipart/form-data");
+  
+  $form['path'] = array(
+    '#type'          => 'textfield',
+    '#title'         => t('Banner Path'),
+    '#default_value' => $banner ? $banner->path : "",
+    '#size'          => 45,
+    '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random).'),
+    '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
+    '#required'      => TRUE,
+  );
+  
+  /**
+   * Note: There are two form elements for the same thing 
+   * They are both not required but only one is needed for proper handling
+   * When we are loading an old banner load the url into imgurl
+   * When we are uploading a new image the validator will upload the image store it and fill in imgurl for you
+   */
   $form['imgurl'] = array(
     '#type' => 'textfield',
-    '#title' => t('Image Url'),
-    '#default_value' => $edit['imgurl'],
-    '#maxlength' => 128,
+    '#title' => t('Typeout the url of the image'),
+    '#default_value' => $banner ? $banner->imgurl : "",
     '#size' => 45,
-    '#description' => t('Specify the path to the image. Starting from the root site directory(comma seperated for randoms).'),
+    '#description' => t('Specify an image(s) for the banner to display.'),
     '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     //'#required' => TRUE,
   );
-
-  // banner picture chooser
-  $form['picture'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Default Banner'),
+  
+  $form['image'] = array(
+    '#type' => 'file',
+    '#title' => t('Choose Image File'),
+    '#default_value' => $banner ? $banner->imgurl : "",
+    '#size' => 45,
+    '#description' => t('Specify an image(s) for the banner to display.'),
+    //'#field_prefix' => ,// get the sites default setting
+    //'#required' => TRUE,
   );
 
+/*
   $picture = $edit['imgurl'];
   //if we are editing an existing pictue place that code in here
   if ($picture) {
@@ -209,7 +214,7 @@ function dynamic_banner_admin_form($form, &$form_state, $edit = NULL) {
    '#size' => 64,
    //'#description' => t('Maximum dimensions are %dimensions and the maximum size is %size kB.', array('%dimensions' => '800x800', '%size' => '1024')),
    );*/
-
+/*
   $form['new']['attach'] = array(
     '#type' => 'submit',
     // this changes the submit box
@@ -225,12 +230,12 @@ function dynamic_banner_admin_form($form, &$form_state, $edit = NULL) {
     ),
     '#submit' => array('node_form_submit_build_node'),
   );
-  $form['#validate'][] = 'dynamic_banner_validate_picture';
+  $form['#validate'][] = 'dynamic_banner_validate_picture';*/
 
   $form['text'] = array(
     '#type' => 'textfield',
     '#title' => t('Text'),
-    '#default_value' => $edit['text'],
+    '#default_value' => $banner ? $banner->text : "",
     '#maxlength' => 128,
     '#size' => 45,
     '#description' => t('Specify the text to associate with this banner (comma seperated for randoms) (also must match amount of elements from images) -optional.'),
@@ -240,16 +245,20 @@ function dynamic_banner_admin_form($form, &$form_state, $edit = NULL) {
   $form['link'] = array(
     '#type' => 'textfield',
     '#title' => t('Link'),
-    '#default_value' => $edit['link'],
+    '#default_value' => $banner ? $banner->link : "",
     '#maxlength' => 128,
     '#size' => 45,
     '#description' => t('Specify the link you want your banner to point to (optional).'),
     '#field_prefix' => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required' => FALSE,
   );
+  
+  
+
+
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => 'Update Banner',
+    '#value' => t('Save Banner'),
   );
 
   return $form;

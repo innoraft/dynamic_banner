@@ -77,6 +77,14 @@ function dynamic_banner_node_presave($node) {
 }
 
 /**
+ * was using this for debuging
+ */
+function dynamic_banner_form_alter(&$form, &$form_state, $form_id) {
+  //dpm($form_id);
+  //dpm($form);
+}
+
+/**
  * Implements hook_node_insert()
  */
 function dynamic_banner_node_insert($node) {
@@ -128,6 +136,7 @@ function dynamic_banner_menu() {
     'page callback' => 'drupal_get_form',
     'page arguments' => array('dynamic_banner_settings'),
     'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_ACTION,
     'file' => 'includes/callbacks.inc',
   );
 
@@ -152,22 +161,24 @@ function dynamic_banner_menu() {
   $items['admin/structure/banners/add/0'] = array(
     'title' => 'Add Banner',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_edit'),
+    'page arguments' => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_ACTION,
     'file' => 'includes/callbacks.inc',
   );
   $items['admin/structure/banners/default'] = array(
     'title' => 'Default Banner',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_edit'),
+    'page arguments' => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
+    'type' => MENU_LOCAL_ACTION,
     'file' => 'includes/callbacks.inc',
   );
   // This will be the page to edit a banner from a form
   $items['admin/structure/banners/edit/%'] = array(
     'title' => 'Edit Banner',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_edit'),
+    'page arguments' => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
     'file' => 'includes/callbacks.inc',
   );
