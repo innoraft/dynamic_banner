@@ -14,6 +14,8 @@
 define("DEFAULT_OUTPUT", "urltext");
 define("DEFAULT_ERROR", FALSE);
 define("DEFAULT_BLOCK_NAME", "Dynamic Banner Block");
+define("DEFAULT_SAVE_LOCATION", "sites/default/files/");
+define("DEFAULT_BANNER_MODE", "normal");
 
 /**
  * Hook Functions (Drupal)
@@ -122,36 +124,36 @@ function dynamic_banner_menu() {
   
   // This is the root path and will be used to add dynamic banner to the admin page
   $items['admin/structure/banners'] = array(
-    'title' => 'Dynamic Banner',
-    'description' => 'Configure the Dynamic Banner.',
-    'page callback' => 'dynamic_banner_admin_page',
+    'title'            => 'Dynamic Banner',
+    'description'      => 'Configure the Dynamic Banner.',
+    'page callback'    => 'dynamic_banner_admin_page',
     'access arguments' => array('administer dynamic_banner'),
-    'file' => 'includes/callbacks.inc',
+    'file'             => 'includes/callbacks.inc',
   );
   
   // The dynamic banner module settings page
   $items['admin/structure/banners/settings'] = array(
-    'title' => 'Settings',
-    'description' => 'A page for the dynamic banner settings',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_settings'),
+    'title'            => 'Settings',
+    'description'      => 'A page for the dynamic banner settings',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_settings'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_ACTION,
-    'file' => 'includes/callbacks.inc',
+    'type'             => MENU_LOCAL_ACTION,
+    'file'             => 'includes/callbacks.inc',
   );
 
   // This will be the page to delete a selected banner
   $items['admin/structure/banners/delete/%'] = array(
-    'title' => 'Delete Banner',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_delete_confirm'),
+    'title'            => 'Delete Banner',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_admin_delete_confirm'),
     'access arguments' => array('administer dynamic_banner'),
-    'file' => 'includes/callbacks.inc',
+    'file'             => 'includes/callbacks.inc',
   );
   // the defaulted page to load on menu click
   $items['admin/structure/banners/list'] = array(
-    'title' => 'List Banners',
-    'weight' => -10,
+    'title'            => 'List Banners',
+    'weight'           => -10,
   );
   
   /**
@@ -159,28 +161,28 @@ function dynamic_banner_menu() {
    * We add them to the menu deal with logic from inside the form
    */
   $items['admin/structure/banners/add/0'] = array(
-    'title' => 'Add Banner',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_form'),
+    'title'            => 'Add Banner',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_ACTION,
-    'file' => 'includes/callbacks.inc',
+    'type'             => MENU_LOCAL_ACTION,
+    'file'             => 'includes/callbacks.inc',
   );
   $items['admin/structure/banners/default'] = array(
-    'title' => 'Default Banner',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_form'),
+    'title'            => 'Default Banner',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
-    'type' => MENU_LOCAL_ACTION,
-    'file' => 'includes/callbacks.inc',
+    'type'             => MENU_LOCAL_ACTION,
+    'file'             => 'includes/callbacks.inc',
   );
   // This will be the page to edit a banner from a form
   $items['admin/structure/banners/edit/%'] = array(
-    'title' => 'Edit Banner',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('dynamic_banner_admin_form'),
+    'title'            => 'Edit Banner',
+    'page callback'    => 'drupal_get_form',
+    'page arguments'   => array('dynamic_banner_admin_form'),
     'access arguments' => array('administer dynamic_banner'),
-    'file' => 'includes/callbacks.inc',
+    'file'             => 'includes/callbacks.inc',
   );
 
   return $items;
@@ -195,15 +197,14 @@ function dynamic_banner_theme() {
   $theme = array(
     'banner_output' => array(
       'variables' => array(
-        'url' => NULL,
-        'text' => NULL,
-        'link' => NULL,
+        'url'             => NULL,
+        'text'            => NULL,
+        'link'            => NULL,
         'display_setting' => NULL,
-        'display_errors' => NULL,
+        'display_errors'  => NULL,
       ),
-      'path' => drupal_get_path('module', 'dynamic_banner') . '/templates',
-      'template' => 'banner_output_template',
-      //'file' => 'banner_output_template.tpl.php',
+      'path'      => drupal_get_path('module', 'dynamic_banner') . '/templates',
+      'template'  => 'banner_output_template',
     ),
   );
 
@@ -251,11 +252,11 @@ function dynamic_banner_block_view($delta) {
         // search for that path string exact match
         if ($result) {
           $variables = array(
-              'url' => $result->imgurl,
-              'text' => $result->text,
-              'link' => $result->link,
+              'url'             => $result->imgurl,
+              'text'            => $result->text,
+              'link'            => $result->link,
               'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-              'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+              'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -272,11 +273,11 @@ function dynamic_banner_block_view($delta) {
         // search for the wild card string exact match
         if ($result) {
           $variables = array(
-            'url' => $result->imgurl,
-            'text' => $result->text,
-            'link' => $result->link,
+            'url'             => $result->imgurl,
+            'text'            => $result->text,
+            'link'            => $result->link,
             'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-            'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -310,11 +311,11 @@ function dynamic_banner_block_view($delta) {
 
           // remember text is optional
           $variables = array(
-            'url' => $image[$random],
-            'text' => $text[$random],
-            'link' => $result->link,
+            'url'             => $image[$random],
+            'text'            => $text[$random],
+            'link'            => $result->link,
             'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-            'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -342,11 +343,11 @@ function dynamic_banner_block_view($delta) {
       // for the resultant row (SHOULD ALWAYS BE ONE)
       if ($result) {
         $variables = array(
-          'url' => $result->imgurl,
-          'text' => $result->text,
-          'link' => $result->link,
+          'url'             => $result->imgurl,
+          'text'            => $result->text,
+          'link'            => $result->link,
           'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-          'display_errors' => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
         return array('content' => theme('banner_output', $variables));
       }
     // just encase something went wrong
