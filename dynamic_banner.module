@@ -14,7 +14,7 @@
 define("DEFAULT_OUTPUT", "urltext");
 define("DEFAULT_ERROR", FALSE);
 define("DEFAULT_BLOCK_NAME", "Dynamic Banner Block");
-define("DEFAULT_SAVE_LOCATION", "sites/default/files/");
+define("DEFAULT_SAVE_LOCATION", "public://banners/");
 define("DEFAULT_BANNER_MODE", "normal");
 
 /**

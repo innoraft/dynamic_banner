@@ -218,6 +218,7 @@ function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
 /**
  * The main form dealing with dynamic banner 
  * There is now only one form for dynamic banner to deal with unlink in the d6 version
+ *
  * INPUT: arg(4) is from the url path of this form
  */
 function dynamic_banner_admin_form($form, &$form_state) {
@@ -226,7 +227,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
   $file_path = drupal_get_path('module', 'file');
   
   // default the variable here
-  $banner = NULL;
+  $banner = NULL; // if i dont do this bugs happen
   
   if ($dbid != NULL) {
     if ($dbid == 0) {
@@ -234,7 +235,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     }
     else {
       $banner = dynamic_banner_load_banner($dbid);
-      drupal_set_title($banner->path);
+      drupal_set_title(t("Edit Banner") . " '" . $banner->path . "'");
     }
   }
   //$form['banner'] = $edit;
@@ -264,27 +265,25 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'          => 'textfield',
     '#title'         => t('Typeout the url of the image'),
     '#default_value' => $banner ? $banner->imgurl : '',
-    '#size'          => 45,
     '#description'   => t('Specify an image(s) for the banner to display.'),
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     //'#required'    => TRUE,
   );
   
   $form['image'] = array(
-    '#type'               => 'managed_file',
     '#title'              => t('Choose Image File'),
-    '#default_value'      => $banner ? $banner->imgurl : '',
-    '#attached'           => array($file_path . '/file.js'),
+    '#type'               => 'managed_file',
+    '#default_value'      => $banner ? $banner->imgfid : '',
+    '#attached'           => array(
+      'js' => array($file_path . '/file.js'),
+     ),
     '#progress_indicator' => 'throbber',
     '#progress_message'   => NULL,
-    '#upload_location'    => DEFAULT_SAVE_LOCATION,
-    //'#element_validate' => module_upload_image_validate,
-    '#size'               => 45,
+    '#upload_location'    => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
     '#description'        => t('Specify an image(s) for the banner to display.'),
-    //'#field_prefix'     => ,// get the sites default setting
     //'#required'         => TRUE,
   );
-  $form['#validate'][] = 'module_upload_image_validate';
+  $form['#validate'][] = 'dynamic_banner_upload_image_validate';
 
   $form['text'] = array(
     '#type'          => 'textfield',
@@ -303,8 +302,30 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#maxlength'     => 128,
     '#size'          => 45,
     '#description'   => t('Specify the link you want your banner to point to (optional).'),
-    '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required'      => FALSE,
+  );
+  
+  $form['time_on'] = array(
+    '#type'          => 'date',
+    '#title'         => t('Start Time'),
+    '#description'   => t('Specify the time you want your banner to start displaying (optional).'),
+    '#required'      => FALSE,
+  );
+  
+  $form['time_off'] = array(
+    '#type'          => 'date',
+    '#date_format'   => 'h:i A',
+    '#title'         => t('End Time'),
+    '#description'   => t('Specify the time you want your banner to stop displaying (optional).'),
+    '#required'      => FALSE,
+  );
+  
+  $form['mode'] = array(
+    '#type'          => 'radios',
+    '#title'         => t('Mode'),
+    '#options'       => array(t('normal'), t('time_based'), t('rotating'), t('fade')),
+    '#default_value' => DEFAULT_BANNER_MODE,
+    '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
   );
 
   $form['submit'] = array(
@@ -316,63 +337,38 @@ function dynamic_banner_admin_form($form, &$form_state) {
 }
 
 /**
- * validate a banner to actually be a picture
- */
-function dynamic_banner_validate_picture(&$form, &$form_state) {
-  // Validate the uploaded picture.
-  $validators = array(
-    'file_validate_is_image' => array(),
-  );
-
-  if ($file = file_save_upload('picture_upload', $validators)) {
-    // Remove the old picture.
-    //if (isset($form_state['values']['_account']->picture) && file_exists($form_state['values']['_account']->picture)) {
-    //file_delete($form_state['values']['_account']->picture);
-    //}
-
-    // The image was saved using file_save_upload() and was added to the
-    // files table as a temporary file. We'll make a copy and let the garbage
-    // collector delete the original upload.
-    $info = image_get_info($file->filepath);
-    $destination = "/sites/all/themes/banners/" . $file->filename;
-
-    // not working todo fix
-    //echo "destination = " . $destination;
-    $form_state['values']['imgurl'] = $destination;
-
-    if (file_copy($file, $destination, FILE_EXISTS_REPLACE)) {
-      $form_state['values']['picture'] = $file->filepath;
-    }
-    else {
-      form_set_error('picture_upload', t("Failed to upload the banner image; the %directory directory doesn't exist or is not writable.", array('%directory' => "/sites/all/theme/banners")));
-    }
-  }
-}
-
-/**
  * Validate/submit handler used for handling image uploads
  */
-function module_upload_image_validate($form, &$form_state) {
+function dynamic_banner_upload_image_validate($form, &$form_state) {
   // This is not needed, I use this to use the same validate function
   // for several fields.
-  $key = $form['image'];
-  $file = file_save_upload($key, array(
+  /*$file = file_save_upload($form['values']['image'], array(
     'file_validate_is_image'   => array(),
     'file_validate_extensions' => array('png gif jpg jpeg'),
-  ));
+  ));*/
+  $file = file_load($form_state['values']['image']);
+  
   if ($file) {
     // Get the image info to get the correct extension for the uploaded file.
-    $info = image_get_info($file->filepath);
+    /*$info = image_get_info($file->filepath);
     if (file_move($file, 'destination/filename'. $info['extension'], FILE_EXISTS_REPLACE)) {
       // Mark the file for permanent storage.
       file_set_status($file, FILE_STATUS_PERMANENT);
       // Update the files table.
-      drupal_write_record('files', $file, 'fid');
-      $form_state['values'][$key] = $file->filepath;
-    }
-    else {
-      form_set_error($key, t('Failed to write the uploaded file to the site’s files folder.'));
-    }
+      drupal_write_record('files', $file, 'fid');*/
+    // Change status to permanent.
+    $file->status = FILE_STATUS_PERMANENT;
+    
+    // When a module is managing a file, it must manage the usage count.
+    // Here we increment the usage count with file_usage_add().
+    file_usage_add($file, 'dynamic_banner', 'banner', 1);
+    $form_state['values']['image'] = $file->filepath;
+    
+    // Save.
+    file_save($file);
+  }
+  else {
+    form_set_error($form_state['values']['image'], t('Failed to write the uploaded file to the folder.'));
   }
 }
 
@@ -382,10 +378,13 @@ function module_upload_image_validate($form, &$form_state) {
  */
 function dynamic_banner_admin_form_submit($form, &$form_state) {
   // Add Validation Checks Here
-  $path   = $form_state['values']['path'];
-  $imgurl = $form_state['values']['imgurl'];
-  $text   = $form_state['values']['text'];
-  $link   = $form_state['values']['link'];
+  $path     = $form_state['values']['path'];
+  $imgurl   = $form_state['values']['imgurl'];
+  $text     = $form_state['values']['text'];
+  $link     = $form_state['values']['link'];
+  $mode     = $from_state['values']['mode'];
+  $time_on  = $from_state['values']['mode'];
+  $time_off = $from_state['values']['mode'];
   ////////////////TODO ////////////////
   
   // Save the banner
@@ -561,7 +560,7 @@ function dynamic_banner_settings($form, $form_state) {
   $form['image_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
-    '#default_value' => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION);,
+    '#default_value' => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
     '#description'   => t('This will be the path all banners get saved to when using the upload utility.'),
   );
 
