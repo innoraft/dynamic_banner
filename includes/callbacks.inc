@@ -30,7 +30,6 @@ function dynamic_banner_admin_page() {
     ),
     array(
       'data'  => t('ImgUrl'),
-      'field' => 'd.imgurl',
     ),
     array(
       'data'  => t('Text'),
@@ -39,6 +38,10 @@ function dynamic_banner_admin_page() {
     array(
       'data'  => t('Link'),
       'field' => 'd.link',
+    ),
+    array(
+      'data'  => t('Mode'),
+      'field' => 'd.mode',
     ),
     array(
       'data'    => t('Operations'),
@@ -68,6 +71,7 @@ function dynamic_banner_admin_page() {
         $data->imgurl,
         $data->text,
         $data->link,
+        $data->mode,
         l(t('edit'), "admin/structure/banners/edit/". $data->dbid),
         l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)
       )
@@ -88,7 +92,6 @@ function dynamic_banner_admin_page() {
   // let drupal handle print and echo
   return $output;
 }
-
 /**
  * Needed for the filtering of the banners page
  */
@@ -224,35 +227,41 @@ function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
 function dynamic_banner_admin_form($form, &$form_state) {
   $dbid = arg(4); // the last portion of the url there must be a better way of doing this
   
+  // This is used by the file handler, It is needed to accept files
+  $form['#attributes'] = array('enctype' => "multipart/form-data");
+  
   $file_path = drupal_get_path('module', 'file');
   
   // default the variable here
   $banner = NULL; // if i dont do this bugs happen
   
-  if ($dbid != NULL) {
-    if ($dbid == 0) {
-      drupal_set_title(t('New Banner'));
-    }
-    else {
-      $banner = dynamic_banner_load_banner($dbid);
-      drupal_set_title(t("Edit Banner") . " '" . $banner->path . "'");
-    }
-  }
-  //$form['banner'] = $edit;
-  //$form['banner']['#access'] = FALSE;
-
-  $form['#attributes'] = array('enctype' => "multipart/form-data");
+  // hide it so that the user may not change this element
+  $form['dbid'] = array(
+    '#type'          => 'hidden',
+    '#required'      => FALSE,
+  );
   
+  if ($dbid == 0) {
+    drupal_set_title(t('New Banner'));
+    $form['dbid']['#value'] = NULL;
+  }
+  else {
+    $banner = dynamic_banner_load_banner($dbid);
+    drupal_set_title(t("Edit Banner") . " '" . $banner->path . "'");
+    $form['dbid']['#value'] = $dbid;
+  }
+
   $form['path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Banner Path'),
     '#default_value' => $banner ? $banner->path : "",
     '#size'          => 45,
+    '#maxlength'     => 250,
     '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random).'),
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required'      => TRUE,
   );
-  
+
   /**
    * Note: There are two form elements for the same thing 
    * They are both not required but only one is needed for proper handling
@@ -269,7 +278,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     //'#required'    => TRUE,
   );
-  
+
   $form['image'] = array(
     '#title'              => t('Choose Image File'),
     '#type'               => 'managed_file',
@@ -289,7 +298,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'          => 'textfield',
     '#title'         => t('Text'),
     '#default_value' => $banner ? $banner->text : '',
-    '#maxlength'     => 128,
+    '#maxlength'     => 250,
     '#size'          => 45,
     '#description'   => t('Specify the text to associate with this banner (comma seperated for randoms) (also must match amount of elements from images) -optional.'),
     '#required'      => FALSE,
@@ -299,7 +308,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'          => 'textfield',
     '#title'         => t('Link'),
     '#default_value' => $banner ? $banner->link : '',
-    '#maxlength'     => 128,
+    '#maxlength'     => 250,
     '#size'          => 45,
     '#description'   => t('Specify the link you want your banner to point to (optional).'),
     '#required'      => FALSE,
@@ -324,7 +333,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'          => 'radios',
     '#title'         => t('Mode'),
     '#options'       => array(t('normal'), t('time_based'), t('rotating'), t('fade')),
-    '#default_value' => DEFAULT_BANNER_MODE,
+    '#default_value' => $banner ? $banner->mode : DEFAULT_BANNER_MODE,
     '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
   );
 
@@ -335,7 +344,6 @@ function dynamic_banner_admin_form($form, &$form_state) {
 
   return $form;
 }
-
 /**
  * Validate/submit handler used for handling image uploads
  */
@@ -346,98 +354,114 @@ function dynamic_banner_upload_image_validate($form, &$form_state) {
     'file_validate_is_image'   => array(),
     'file_validate_extensions' => array('png gif jpg jpeg'),
   ));*/
-  $file = file_load($form_state['values']['image']);
-  
-  if ($file) {
-    // Get the image info to get the correct extension for the uploaded file.
-    /*$info = image_get_info($file->filepath);
-    if (file_move($file, 'destination/filename'. $info['extension'], FILE_EXISTS_REPLACE)) {
-      // Mark the file for permanent storage.
-      file_set_status($file, FILE_STATUS_PERMANENT);
-      // Update the files table.
-      drupal_write_record('files', $file, 'fid');*/
-    // Change status to permanent.
-    $file->status = FILE_STATUS_PERMANENT;
-    
-    // When a module is managing a file, it must manage the usage count.
-    // Here we increment the usage count with file_usage_add().
-    file_usage_add($file, 'dynamic_banner', 'banner', 1);
-    $form_state['values']['image'] = $file->filepath;
-    
-    // Save.
-    file_save($file);
-  }
-  else {
-    form_set_error($form_state['values']['image'], t('Failed to write the uploaded file to the folder.'));
+  if ( isset($form_state['values']['image']) && $form_state['values']['image'] != 0) {
+    $file = file_load($form_state['values']['image']);
+    dpm($form_state);
+
+    if ($file) {
+      // Get the image info to get the correct extension for the uploaded file.
+      /*$info = image_get_info($file->filepath);
+      if (file_move($file, 'destination/filename'. $info['extension'], FILE_EXISTS_REPLACE)) {
+        // Mark the file for permanent storage.
+        file_set_status($file, FILE_STATUS_PERMANENT);
+        // Update the files table.
+        drupal_write_record('files', $file, 'fid');*/
+      // Change status to permanent.
+      $file->status = FILE_STATUS_PERMANENT;
+
+      // When a module is managing a file, it must manage the usage count.
+      // Here we increment the usage count with file_usage_add().
+      file_usage_add($file, 'dynamic_banner', 'banner', 1);
+      $form_state['values']['image'] = $file->filepath;
+
+      // Save the file again for permanent status
+      file_save($file);
+    }
+    else {
+      form_set_error($form_state['values']['image'], t('Failed to write the uploaded file to the folder.'));
+    }
   }
 }
 
+/**
+ * Verify that the Banner is valid
+ * It makes sure that the sql does not throw errors
+ */
+function dynamic_banner_admin_form_validate($form, &$form_state) {
+  // For a banner to exist it needs a path that it is assigned to and an image, thats it.
+  if (isset($form_state['values']['path']) &&
+      (isset($form_state['values']['image']) || isset($form_state['values']['imgurl']))) {
+
+    $path = $form_state['values']['path'];
+
+    // path is not clean at this point because of wildcard and random must chop those characters off
+    // find the * or wildcard
+    $wild_position = strrpos($path, "*");
+    if ($wild_position !== FALSE) {
+      $path = drupal_substr($path, 0, $wild_position);
+    }
+    // find the ! or random
+    $rand_position = strrpos($path, "!");
+    if ($rand_position !== FALSE) {
+      $path = drupal_substr($path, 0, $rand_position);
+    }
+
+    if (drupal_lookup_path('source', $path)) {
+      // We are making a new banner previous checks should be enough to deal with validation
+      if ( $dbid != 0) {
+        return;
+      }
+
+      // check for more than one of the same path banners
+      if (db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path", array(':path' => $path))->fetchField() > 1) {
+        form_set_error('path', t('The path %path is already in use.', array('%path' => $path)));
+      }
+    }
+    else {
+      form_set_error('path', t('The path %path is not known by drupal.', array('%path' => $path)));
+    }
+  }
+  else {
+    form_set_error('path', t('There was a problem with the required fields please check the form and try again.'));
+  }
+}
 
 /**
  * Save a new Banner to the database
  */
 function dynamic_banner_admin_form_submit($form, &$form_state) {
-  // Add Validation Checks Here
+  // define a sort of struct array for display mode for form translation
+  $mode_struct = array('normal', 'time_based', 'rotating', 'fade');
+  
   $path     = $form_state['values']['path'];
   $imgurl   = $form_state['values']['imgurl'];
+  $imgfid   = $form_state['values']['image'];
   $text     = $form_state['values']['text'];
   $link     = $form_state['values']['link'];
-  $mode     = $from_state['values']['mode'];
-  $time_on  = $from_state['values']['mode'];
-  $time_off = $from_state['values']['mode'];
-  ////////////////TODO ////////////////
+  $mode     = $mode_struct[($form_state['values']['mode'])]; // mode needs translating
+  //$time_on  = $form_state['values']['time_on'];// these are arrays we need a time handler
+  //$time_off = $form_state['values']['time_off'];
+  $dbid     = $form_state['values']['dbid'];
   
+  $time_on  = NULL;
+  $time_off = NULL;
+
   // Save the banner
-  dynamic_banner_set_banner($path, $imgurl, $text, $link, 999);
+  dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode, $time_on, $time_off, $dbid);
 
   drupal_set_message(t('The banner has been saved.'));
   $form_state['redirect'] = 'admin/structure/banners';
-  return;
-}
-
-/**
- * Verify that the Banner is valid
- */
-function dynamic_banner_admin_form_validate($form, &$form_state) {
-  $path = $form_state['values']['path'];
-  $imgurl = $form_state['values']['imgurl'];
-  $picture = $form_state['values']['picture']['picture_upload'];
-  $link = $form_state['values']['link'];
-  $dbid = isset($form_state['values']['dbid']) ? $form_state['values']['dbid'] : 0;
-
-  // we are updating so let it make the changes
-  if ( $dbid != 0) {
-    return;
-  }
-
-  // check for more than one of the same path banners
-  if (db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path", array(':path' => $path))->fetchField()) {
-    form_set_error('path', t('The path %path is already in use.', array('%path' => $path)));
-  }
-
-  /* TODO FIX VALIDATION ERRORS*/
-  /*
-   // check for path existance and path access
-   if ( !drupal_valid_path($path)) {
-   form_set_error('path', t("The path '@link_path' is either invalid or you do not have access to it.", array('@link_path' => $path)));
-   }*/
 }
 
 /**
  * Set a banner for a given path, preventing duplicates.
  * Note if dbid comes in null then we are creating a banner
  */
-function dynamic_banner_set_banner($path, $imgurl, $text, $link, $dbid, $mode, $time_on, $time_off) {
-  dpm($path);
-  dpm($imgurl);
-  $path = urldecode($path);
-  $imgurl = urldecode($imgurl);
+function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode, $time_on, $time_off, $dbid = NULL) {
   if (!$mode) {
     $mode = DEFAULT_BANNER_MODE;
   }
-  dpm("after url decode");
-  dpm($path);
-  dpm($imgurl);
+
   // First we check if we are dealing with an existing alias and delete or modify it based on dbid.
   // we dont need to do a complicated check here because the code already made it for us
   if ($dbid) {
@@ -445,6 +469,7 @@ function dynamic_banner_set_banner($path, $imgurl, $text, $link, $dbid, $mode, $
     db_update('dynamic_banner')->fields(array(
       'path'       => $path,
       'imgurl'     => $imgurl,
+      'imgfid'     => $imgfid,
       'text'       => $text,
       'link'       => $link,
       'mode'       => $mode,
@@ -456,6 +481,7 @@ function dynamic_banner_set_banner($path, $imgurl, $text, $link, $dbid, $mode, $
     db_insert('dynamic_banner')->fields(array(
       'path'       => $path,
       'imgurl'     => $imgurl,
+      'imgfid'     => $imgfid,
       'text'       => $text,
       'link'       => $link,
       'mode'       => $mode,
@@ -472,7 +498,7 @@ function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
   $banner = dynamic_banner_load_banner($dbid);
   if (user_access('administer dynamic_banner')) {
     $form['dbid'] = array(
-      '#type' => 'value',
+      '#type' => 'hidden',
       '#value' => $dbid,
     );
     $output = confirm_form($form, 
@@ -509,7 +535,7 @@ function dynamic_banner_load_banner($dbid) {
   $query->condition('d.dbid', $dbid, '=')
     ->fields('d');
   $result = $query->execute()->fetchObject();
-  
+
   if ($result) {
     return $result;
   }
@@ -556,7 +582,7 @@ function dynamic_banner_settings($form, $form_state) {
     '#default_value' => $errors_current_setting,
     '#description'   => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
   );// does this still work when there is a default banner
-  
+
   $form['image_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
@@ -602,8 +628,71 @@ function dynamic_banner_settings_submit($form, &$form_state) {
   else {
     variable_set('dynamic_banner_display_errors', FALSE);
   }
-  
+
   variable_set('dynamic_banner_file_save_path', $form_state['values']['image_save_path']);
 
   $form_state['redirect'] = '/admin/build/banners/';
+}
+
+/**
+ * This function will load imgurl if there is no url for img
+ * then it will load the fids into path format
+ *
+ * Input 1: The imgurl(s) that we are loading [maybe csv]
+ * Input 2: The imgfid(s) that we are loading [maybe csv]
+ */
+function dynamic_banner_image_handler($imgurl, $imgfid) {
+  if ($imgurl != '') {
+    return $imgurl;
+  }
+  else {
+    if ( strrpos($imgfid, ',') ) {
+      $all_fids = explode(",", $imgfid);
+      $all_files = file_load_multiple($all_fids);
+      dpm($all_files);
+      return $retval;
+    }
+    else {
+      $one_file = file_load($imgfid);
+      dpm($one_file);
+      return $retval;
+    }
+  }
+}
+function dynamic_banner_image_delete($fid) {
+  if ( strrpos($fid, ',') ) {
+    $all_fids = explode(",", $imgfid);
+    $all_files = file_load_multiple($all_fids);
+    
+    foreach($all_files as $file) {
+      if ($file) {
+        // When a module is managing a file, it must manage the usage count.
+        // Here we decrement the usage count with file_usage_delete().
+        file_usage_delete($file, 'dynamic_banner', 'banner', 1);
+
+        // The file_delete() function takes a file object and checks to see if
+        // the file is being used by any other modules. If it is the delete
+        // operation is cancelled, otherwise the file is deleted.
+        file_delete($file);
+      }
+    
+      drupal_set_message(t('The image @image_name was removed.', array('@image_name' => $file->filename)));
+    }
+  }
+  else {
+    $file = $fid ? file_load($fid) : FALSE;
+    
+    if ($file) {
+      // When a module is managing a file, it must manage the usage count.
+      // Here we decrement the usage count with file_usage_delete().
+      file_usage_delete($file, 'dynamic_banner', 'banner', 1);
+
+      // The file_delete() function takes a file object and checks to see if
+      // the file is being used by any other modules. If it is the delete
+      // operation is cancelled, otherwise the file is deleted.
+      file_delete($file);
+    }
+    
+    drupal_set_message(t('The image @image_name was removed.', array('@image_name' => $file->filename)));
+  }
 }
