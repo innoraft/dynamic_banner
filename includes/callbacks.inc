@@ -261,6 +261,11 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required'      => TRUE,
   );
+  
+  // if the module exists add the autocomplete path
+  if ( module_exists('mpac') ) {
+    $form['path']['#autocomplete_path'] = 'mpac/autocomplete/alias';
+  }
 
   /**
    * Note: There are two form elements for the same thing 
@@ -300,7 +305,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#default_value' => $banner ? $banner->text : '',
     '#maxlength'     => 250,
     '#size'          => 45,
-    '#description'   => t('Specify the text to associate with this banner (comma seperated for randoms) (also must match amount of elements from images) -optional.'),
+    '#description'   => t('Specify the text to associate with this banner [comma seperated for randoms, also must match amount of elements from images] (optional).'),
     '#required'      => FALSE,
   );
 
@@ -335,6 +340,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#options'       => array(t('normal'), t('time_based'), t('rotating'), t('fade')),
     '#default_value' => $banner ? $banner->mode : DEFAULT_BANNER_MODE,
     '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
+    '#required'      => TRUE,
   );
 
   $form['submit'] = array(
@@ -642,7 +648,8 @@ function dynamic_banner_settings_submit($form, &$form_state) {
  * Input 2: The imgfid(s) that we are loading [maybe csv]
  */
 function dynamic_banner_image_handler($imgurl, $imgfid) {
-  if ($imgurl != '') {
+  // we have found the imgurl already in the right format return it
+  if ($imgurl && $imgurl != '') {
     return $imgurl;
   }
   else {
@@ -650,15 +657,27 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
       $all_fids = explode(",", $imgfid);
       $all_files = file_load_multiple($all_fids);
       dpm($all_files);
+      $retval = "";
+      foreach ($all_files as $file) {
+        if ($retval != "") {
+          $retval .= ",";
+        }
+        $retval .= $file->filepath;
+      }
       return $retval;
     }
     else {
-      $one_file = file_load($imgfid);
-      dpm($one_file);
-      return $retval;
+      $file = file_load($imgfid);
+      dpm($file);
+      return $file->filepath;
     }
   }
 }
+
+/**
+ * This function will split the csv fid variable if it needs to be split
+ * And then delete those images from the file system and thier values in the db
+ */
 function dynamic_banner_image_delete($fid) {
   if ( strrpos($fid, ',') ) {
     $all_fids = explode(",", $imgfid);

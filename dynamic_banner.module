@@ -253,7 +253,7 @@ function dynamic_banner_block_view($delta) {
         
         // search for that path string exact match
         if ($result) {
-          // have to translate if we have
+          // have to translate if we have fids
           // image should always be in path format (sites/default/banners/pic0.jpg,sites/default/banners/pic1.jpg)
           $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
           $variables = array(
