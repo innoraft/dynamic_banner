@@ -257,7 +257,7 @@ function dynamic_banner_block_view($delta) {
           // image should always be in path format (sites/default/banners/pic0.jpg,sites/default/banners/pic1.jpg)
           $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
           $variables = array(
-              'url'             => $result->imgurl,
+              'url'             => $image,
               'text'            => $result->text,
               'link'            => $result->link,
               'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
@@ -277,8 +277,11 @@ function dynamic_banner_block_view($delta) {
 
         // search for the wild card string exact match
         if ($result) {
+          // have to translate if we have fids
+          // image should always be in path format (sites/default/banners/pic0.jpg,sites/default/banners/pic1.jpg)
+          $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
           $variables = array(
-            'url'             => $result->imgurl,
+            'url'             => $image,
             'text'            => $result->text,
             'link'            => $result->link,
             'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
@@ -299,7 +302,7 @@ function dynamic_banner_block_view($delta) {
         // search for that random string exact match
         if ($result) {
           // get extra stuff associated with randoms
-          $images = $result->imgurl;
+          $images = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
           // support for random text if needed
           $texts = $result->text;
           // explode comma seperated images and text

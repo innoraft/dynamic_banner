@@ -65,10 +65,11 @@ function dynamic_banner_admin_page() {
   // start constructing the individual rows
   $rows = array();
   foreach ($result as $data) {
+    $image = dynamic_banner_image_handler($data->imgurl, $data->imgfid);
     $rows[] = array('data' => 
       array(
         $data->path,
-        $data->imgurl,
+        $image,
         $data->text,
         $data->link,
         $data->mode,
@@ -257,14 +258,28 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#default_value' => $banner ? $banner->path : "",
     '#size'          => 45,
     '#maxlength'     => 250,
-    '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random).'),
+    '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random). Enter a path as it appears in the url of your site.'),
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     '#required'      => TRUE,
   );
   
   // if the module exists add the autocomplete path
+  // i might have to do my own autocomplete here cause mpac doesnt really do what i need it to do
   if ( module_exists('mpac') ) {
     $form['path']['#autocomplete_path'] = 'mpac/autocomplete/alias';
+  }
+  
+  $form['image_type'] = array(
+    '#type'    => 'radios',
+    '#options' => drupal_map_assoc(array(t('Use Existing Image(s)'), t('Upload New Image(s)'))),
+    '#title'   => t('Choose image type.')
+  );
+  
+  if ( $banner && isset($banner->imgurl)) {
+    $form['image_type']['#default_value'] = t('Use Existing Image(s)');
+  }
+  if ( $banner && isset($banner->imgfid)) {
+    $form['image_type']['#default_value'] = t('Upload New Image(s)');
   }
 
   /**
@@ -282,6 +297,21 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#description'   => t('Specify an image(s) for the banner to display.'),
     '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
     //'#required'    => TRUE,
+    '#states'        => array(
+      'visible'      => array(
+        ':input[name="image_type"]' => array('value' => t('Use Existing Image(s)')),
+      ),
+    ),
+  );
+  
+  /** 
+   * Since upon pressing the delete button on the image the fid is set to 0
+   * We need to save is because we still need to delete that image.
+   */
+  $form['oldimagefid'] = array(
+    '#type'          => 'hidden',
+    '#required'      => FALSE,
+    '#value'         => $banner ? $banner->imgfid : '',
   );
 
   $form['image'] = array(
@@ -289,13 +319,18 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'               => 'managed_file',
     '#default_value'      => $banner ? $banner->imgfid : '',
     '#attached'           => array(
-      'js' => array($file_path . '/file.js'),
+      'js'                => array($file_path . '/file.js'),
      ),
     '#progress_indicator' => 'throbber',
     '#progress_message'   => NULL,
     '#upload_location'    => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
     '#description'        => t('Specify an image(s) for the banner to display.'),
     //'#required'         => TRUE,
+    '#states'             => array(
+      'visible'           => array(
+        ':input[name="image_type"]' => array('value' => t('Upload New Image(s)')),
+      ),
+    ),
   );
   $form['#validate'][] = 'dynamic_banner_upload_image_validate';
 
@@ -318,29 +353,38 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#description'   => t('Specify the link you want your banner to point to (optional).'),
     '#required'      => FALSE,
   );
+
+  $form['mode'] = array(
+    '#type'          => 'radios',
+    '#title'         => t('Mode'),
+    '#options'       => drupal_map_assoc(array(t('normal'), t('time_based'), t('rotating'), t('fade'))),
+    '#default_value' => $banner ? $banner->mode : DEFAULT_BANNER_MODE,
+    '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
+    '#required'      => TRUE,
+  );
   
   $form['time_on'] = array(
     '#type'          => 'date',
     '#title'         => t('Start Time'),
     '#description'   => t('Specify the time you want your banner to start displaying (optional).'),
     '#required'      => FALSE,
+    '#states'        => array(
+      'visible'      => array(
+        ':input[name="mode"]' => array('value' => t('time_based')),
+      ),
+    ),
   );
   
   $form['time_off'] = array(
     '#type'          => 'date',
-    '#date_format'   => 'h:i A',
     '#title'         => t('End Time'),
     '#description'   => t('Specify the time you want your banner to stop displaying (optional).'),
     '#required'      => FALSE,
-  );
-  
-  $form['mode'] = array(
-    '#type'          => 'radios',
-    '#title'         => t('Mode'),
-    '#options'       => array(t('normal'), t('time_based'), t('rotating'), t('fade')),
-    '#default_value' => $banner ? $banner->mode : DEFAULT_BANNER_MODE,
-    '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
-    '#required'      => TRUE,
+    '#states'        => array(
+      'visible'      => array(
+        ':input[name="mode"]' => array('value' => t('time_based')),
+      ),
+    ),
   );
 
   $form['submit'] = array(
@@ -378,7 +422,6 @@ function dynamic_banner_upload_image_validate($form, &$form_state) {
       // When a module is managing a file, it must manage the usage count.
       // Here we increment the usage count with file_usage_add().
       file_usage_add($file, 'dynamic_banner', 'banner', 1);
-      $form_state['values']['image'] = $file->filepath;
 
       // Save the file again for permanent status
       file_save($file);
@@ -386,6 +429,10 @@ function dynamic_banner_upload_image_validate($form, &$form_state) {
     else {
       form_set_error($form_state['values']['image'], t('Failed to write the uploaded file to the folder.'));
     }
+  }
+  // Delete the image
+  elseif ($form_state['values']['image'] == 0) {
+    dynamic_banner_image_delete($form_state['values']['oldimagefid']);
   }
 }
 
@@ -437,14 +484,26 @@ function dynamic_banner_admin_form_validate($form, &$form_state) {
  */
 function dynamic_banner_admin_form_submit($form, &$form_state) {
   // define a sort of struct array for display mode for form translation
-  $mode_struct = array('normal', 'time_based', 'rotating', 'fade');
+  //$mode_struct = array('normal', 'time_based', 'rotating', 'fade');
+  
+  // extra validation check to make sure
+  if ($form_state['values']['image_type'] == t('Use Existing Image(s)')) {
+    $imgurl = $form_state['values']['imgurl'];
+  }
+  else {
+    $imgurl = NULL;
+  }
+  if ($form_state['values']['image_type'] == t('Upload New Image(s)')) {
+    $imgfid = $form_state['values']['image'];
+  }
+  else {
+    $imgfid = NULL;
+  }
   
   $path     = $form_state['values']['path'];
-  $imgurl   = $form_state['values']['imgurl'];
-  $imgfid   = $form_state['values']['image'];
   $text     = $form_state['values']['text'];
   $link     = $form_state['values']['link'];
-  $mode     = $mode_struct[($form_state['values']['mode'])]; // mode needs translating
+  $mode     = $form_state['values']['mode'];
   //$time_on  = $form_state['values']['time_on'];// these are arrays we need a time handler
   //$time_off = $form_state['values']['time_off'];
   $dbid     = $form_state['values']['dbid'];
@@ -553,21 +612,6 @@ function dynamic_banner_load_banner($dbid) {
  */
 function dynamic_banner_settings($form, $form_state) {
   // todo need to find a better way of doing this
-  $display_setting = variable_get( 'dynamic_banner_display_setting', DEFAULT_OUTPUT );
-  if ( $display_setting == 'url' ) {
-    $display_current_setting = 0;
-  }
-  elseif ( $display_setting == 'text' ) {
-    $display_current_setting = 1;
-  }
-  elseif ( $display_setting == 'urltext' ) {
-    $display_current_setting = 2;
-  }
-  elseif ( $display_setting == 'urllink' ) {
-    $display_current_setting = 3;
-  }
-
-  // todo need to find a better way of doing this
   $errors_current_setting = 1;
   if ( variable_get('dynamic_banner_display_errors', DEFAULT_ERROR) ) {
     $errors_current_setting = 0;
@@ -576,9 +620,10 @@ function dynamic_banner_settings($form, $form_state) {
   $form['display_setting'] = array(
     '#type'          => 'radios',
     '#title'         => t('Display Setting'),
-    '#options'       => array(t('url'), t('text'), t('urltext'), t('urllink')),
-    '#default_value' => $display_current_setting,
+    '#options'       => drupal_map_assoc(array(t('url'), t('text'), t('urltext'), t('urllink'))),
+    '#default_value' => variable_get( 'dynamic_banner_display_setting', DEFAULT_OUTPUT ),
     '#description'   => t('What display pattern do you want the module to follow in the template file'),
+    '#required'      => TRUE,
   );
 
   $form['display_errors'] = array(
@@ -587,13 +632,15 @@ function dynamic_banner_settings($form, $form_state) {
     '#options'       => array(t('yes'), t('no')),
     '#default_value' => $errors_current_setting,
     '#description'   => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
+    '#required'      => TRUE,
   );// does this still work when there is a default banner
 
   $form['image_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
     '#default_value' => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
-    '#description'   => t('This will be the path all banners get saved to when using the upload utility.'),
+    '#description'   => t('This will be the path all banners get saved to when using the upload utility. \'public://\' is your sites files folder. '),
+    '#required'      => TRUE,
   );
 
   $form['submit'] = array(
@@ -609,20 +656,6 @@ function dynamic_banner_settings($form, $form_state) {
  */
 function dynamic_banner_settings_submit($form, &$form_state) {
   $display = $form_state['values']['display_setting'];
-
-  // todo fix this
-  if ($display == 0) {
-    $display = 'url';
-  }
-  elseif ($display == 1) {
-    $display = 'text';
-  }
-  elseif ($display == 2) {
-    $display = 'urltext';
-  }
-  elseif ($display == 3) {
-    $display = 'urllink';
-  }
   variable_set('dynamic_banner_display_setting', $display);
 
   $errors = $form_state['values']['display_errors'];
@@ -637,7 +670,7 @@ function dynamic_banner_settings_submit($form, &$form_state) {
 
   variable_set('dynamic_banner_file_save_path', $form_state['values']['image_save_path']);
 
-  $form_state['redirect'] = '/admin/build/banners/';
+  $form_state['redirect'] = 'admin/structure/banners';
 }
 
 /**
@@ -654,22 +687,27 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
   }
   else {
     if ( strrpos($imgfid, ',') ) {
+      // split the plain string into an array
       $all_fids = explode(",", $imgfid);
+      // load all files at once
       $all_files = file_load_multiple($all_fids);
-      dpm($all_files);
-      $retval = "";
+      $retval = "";// default the return string
+      // go into all the loaded files
       foreach ($all_files as $file) {
+        // if this is the first time through do not add a comma to the string
         if ($retval != "") {
           $retval .= ",";
         }
-        $retval .= $file->filepath;
+        // have to translate the public string in the uri back into something browsers understand
+        $retval .= str_replace('public://', variable_get('file_public_path', '') . '/', $file->uri);
       }
       return $retval;
     }
     else {
       $file = file_load($imgfid);
-      dpm($file);
-      return $file->filepath;
+      // have to translate the public string in the uri back into something browsers understand
+      $file_path = str_replace('public://', variable_get('file_public_path', '') . '/', $file->uri);
+      return $file_path;
     }
   }
 }
@@ -680,7 +718,9 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
  */
 function dynamic_banner_image_delete($fid) {
   if ( strrpos($fid, ',') ) {
+    // split the plain string into an array
     $all_fids = explode(",", $imgfid);
+    // load all files at once
     $all_files = file_load_multiple($all_fids);
     
     foreach($all_files as $file) {
