@@ -234,7 +234,6 @@ function dynamic_banner_block_view($delta) {
   if ($delta == DEFAULT_BLOCK_NAME) {
       // store the path of the page the block is loading from, this will sead our first searches
       $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
-      dpm($path);
       
       // debug statements enable these if you want to see the bahvior of these methods or if you want to defualt a path
       //dpm($path);
