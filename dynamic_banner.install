@@ -88,7 +88,7 @@ function dynamic_banner_install() {
   // default settings install
   variable_set('dynamic_banner_display_setting', 'urltext');
   variable_set('dynamic_banner_display_errors', FALSE);
-  variable_set('dynamic_banner_file_save_path', '');
+  variable_set('dynamic_banner_file_save_path', BANNER_DEFAULT_SAVE_LOCATION);
 
   drupal_set_message(st('Dynamic Banner Module installed successfully.'), 'warning');
 }

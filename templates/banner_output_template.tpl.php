@@ -62,7 +62,7 @@ elseif ($display_setting == 'text') {
 elseif ($display_setting == 'urllink') {
   if ($url && $link) {
     $output .= "<div id='banner'>";
-    $output .= "<a class='link' href='/$link'><img class='jpg' alt='banner' src='/$url'></a>";
+    $output .= "<a class='link' href='$link'><img class='jpg' alt='banner' src='/$url'></a>";
     $output .= "</div>";
   }
   elseif ($display_errors) {

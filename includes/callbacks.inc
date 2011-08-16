@@ -233,35 +233,61 @@ function dynamic_banner_admin_form($form, &$form_state) {
   
   $file_path = drupal_get_path('module', 'file');
   
-  // default the variable here
-  $banner = NULL; // if i dont do this bugs happen
+  // default the variables here
+  $banner = NULL; // prevent bugs nulify the variable
+  $default_flag = FALSE; // enable variable in this scope
   
   // hide it so that the user may not change this element
   $form['dbid'] = array(
     '#type'          => 'hidden',
     '#required'      => FALSE,
   );
-  
-  if ($dbid == 0) {
-    drupal_set_title(t('New Banner'));
-    $form['dbid']['#value'] = NULL;
+
+  if ($dbid == '') {
+    // this will disable the path field for the default banner
+    if (strrpos($_GET['q'], "/default")) {
+      drupal_set_title(t('Default Banner'));
+      // load the default if there is one
+      $banner = dynamic_banner_find_load_default();
+    }
+    else {
+      drupal_set_title(t('New Banner'));
+      $form['dbid']['#value'] = NULL;
+    }
   }
   else {
+    // The dbid is set so a banner must exist load it
     $banner = dynamic_banner_load_banner($dbid);
     drupal_set_title(t("Edit Banner") . " '" . $banner->path . "'");
     $form['dbid']['#value'] = $dbid;
   }
-
-  $form['path'] = array(
-    '#type'          => 'textfield',
-    '#title'         => t('Banner Path'),
-    '#default_value' => $banner ? $banner->path : "",
-    '#size'          => 45,
-    '#maxlength'     => 250,
-    '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random). Enter a path as it appears in the url of your site.'),
-    '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
-    '#required'      => TRUE,
-  );
+  
+  // this will prevent the used from changing this field once the default has been loaded
+  // it deals with a bug if the person chose to edit the specific banner for default rather than pressing default
+  if ($banner && $banner->path == 'DEFAULT') {
+    $default_flag = TRUE;
+  }
+  
+  // disable the path form element when the default flag is out
+  if (!$default_flag) {
+    $form['path'] = array(
+      '#type'          => 'textfield',
+      '#title'         => t('Banner Path'),
+      '#default_value' => $banner ? $banner->path : "",
+      '#size'          => 45,
+      '#maxlength'     => 250,
+      '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random). Enter a path as it appears in the url of your site.'),
+      '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
+      '#required'      => TRUE,
+    );
+  }
+  else {
+    $form['path'] = array(
+      '#type'          => 'hidden',
+      '#title'         => t('Banner Path'),
+      '#value'         => 'DEFAULT',
+    );
+  }
   
   // if the module exists add the autocomplete path
   // i might have to do my own autocomplete here cause mpac doesnt really do what i need it to do
@@ -323,7 +349,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
      ),
     '#progress_indicator' => 'throbber',
     '#progress_message'   => NULL,
-    '#upload_location'    => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
+    '#upload_location'    => variable_get('dynamic_banner_file_save_path', BANNER_DEFAULT_SAVE_LOCATION),
     '#description'        => t('Specify an image(s) for the banner to display.'),
     //'#required'         => TRUE,
     '#states'             => array(
@@ -358,11 +384,11 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'          => 'radios',
     '#title'         => t('Mode'),
     '#options'       => drupal_map_assoc(array(t('normal'), t('time_based'), t('rotating'), t('fade'))),
-    '#default_value' => $banner ? $banner->mode : DEFAULT_BANNER_MODE,
+    '#default_value' => $banner ? $banner->mode : BANNER_DEFAULT_BANNER_MODE,
     '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
     '#required'      => TRUE,
   );
-  
+  /*
   $form['time_on'] = array(
     '#type'          => 'date',
     '#title'         => t('Start Time'),
@@ -385,7 +411,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
         ':input[name="mode"]' => array('value' => t('time_based')),
       ),
     ),
-  );
+  );*/
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -406,7 +432,6 @@ function dynamic_banner_upload_image_validate($form, &$form_state) {
   ));*/
   if ( isset($form_state['values']['image']) && $form_state['values']['image'] != 0) {
     $file = file_load($form_state['values']['image']);
-    dpm($form_state);
 
     if ($file) {
       // Get the image info to get the correct extension for the uploaded file.
@@ -447,35 +472,40 @@ function dynamic_banner_admin_form_validate($form, &$form_state) {
 
     $path = $form_state['values']['path'];
 
-    // path is not clean at this point because of wildcard and random must chop those characters off
-    // find the * or wildcard
-    $wild_position = strrpos($path, "*");
-    if ($wild_position !== FALSE) {
-      $path = drupal_substr($path, 0, $wild_position);
-    }
-    // find the ! or random
-    $rand_position = strrpos($path, "!");
-    if ($rand_position !== FALSE) {
-      $path = drupal_substr($path, 0, $rand_position);
-    }
-
-    if (drupal_lookup_path('source', $path)) {
-      // We are making a new banner previous checks should be enough to deal with validation
-      if ( $dbid != 0) {
-        return;
-      }
-
+    if ($path != 'DEFAULT') {
+      // check db before altering the path variable
       // check for more than one of the same path banners
       if (db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path", array(':path' => $path))->fetchField() > 1) {
         form_set_error('path', t('The path %path is already in use.', array('%path' => $path)));
+        return;
       }
-    }
-    else {
-      form_set_error('path', t('The path %path is not known by drupal.', array('%path' => $path)));
+      // path is not clean at this point because of wildcard and random must chop those characters off
+      // find the * or wildcard
+      $wild_position = strrpos($path, "*");
+      if ($wild_position !== FALSE) {
+        $path = drupal_substr($path, 0, $wild_position);
+      }
+      // find the ! or random
+      $rand_position = strrpos($path, "!");
+      if ($rand_position !== FALSE) {
+        $path = drupal_substr($path, 0, $rand_position);
+      }
+
+      if (drupal_lookup_path('source', $path)) {
+        // We are making a new banner previous checks should be enough to deal with validation
+        if ( $dbid != 0) {
+          return;
+        }
+      }
+      else {
+        form_set_error('path', t('The path %path is not known by drupal.', array('%path' => $path)));
+        return;
+      }
     }
   }
   else {
     form_set_error('path', t('There was a problem with the required fields please check the form and try again.'));
+    return;
   }
 }
 
@@ -524,7 +554,7 @@ function dynamic_banner_admin_form_submit($form, &$form_state) {
  */
 function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode, $time_on, $time_off, $dbid = NULL) {
   if (!$mode) {
-    $mode = DEFAULT_BANNER_MODE;
+    $mode = BANNER_DEFAULT_BANNER_MODE;
   }
 
   // First we check if we are dealing with an existing alias and delete or modify it based on dbid.
@@ -559,7 +589,10 @@ function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode,
 /**
  * Menu callback; confirms deleting a Banner
  */
-function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
+function dynamic_banner_admin_delete_confirm($form, $form_state) {
+  // the last part of the url
+  $dbid = arg(4);
+
   $banner = dynamic_banner_load_banner($dbid);
   if (user_access('administer dynamic_banner')) {
     $form['dbid'] = array(
@@ -608,12 +641,37 @@ function dynamic_banner_load_banner($dbid) {
 }
 
 /**
+ * Find the default banner and return all of it's attributes
+ */
+function dynamic_banner_find_load_default() {
+  $query = db_select('dynamic_banner', 'd');
+  $query->condition('d.path', 'DEFAULT', '=')
+    ->fields('d');
+  $result = $query->execute()->fetchObject();
+
+  if ($result) {
+    return $result;
+  }
+  
+  // do not return null for this
+  $blank_banner = new stdClass();
+  $blank_banner->dbid = 0;
+  $blank_banner->path = 'DEFAULT';
+  $blank_banner->imgurl = '';
+  $blank_banner->mode = 'normal';
+  $blank_banner->text = '';
+  $blank_banner->link = '';
+  $blank_banner->imgfid = '';
+  return $blank_banner;
+}
+
+/**
  * A page that will display a form for changing how dynamic banner will function
  */
 function dynamic_banner_settings($form, $form_state) {
   // todo need to find a better way of doing this
   $errors_current_setting = 1;
-  if ( variable_get('dynamic_banner_display_errors', DEFAULT_ERROR) ) {
+  if ( variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR) ) {
     $errors_current_setting = 0;
   }
 
@@ -621,7 +679,7 @@ function dynamic_banner_settings($form, $form_state) {
     '#type'          => 'radios',
     '#title'         => t('Display Setting'),
     '#options'       => drupal_map_assoc(array(t('url'), t('text'), t('urltext'), t('urllink'))),
-    '#default_value' => variable_get( 'dynamic_banner_display_setting', DEFAULT_OUTPUT ),
+    '#default_value' => variable_get( 'dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT ),
     '#description'   => t('What display pattern do you want the module to follow in the template file'),
     '#required'      => TRUE,
   );
@@ -638,7 +696,7 @@ function dynamic_banner_settings($form, $form_state) {
   $form['image_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
-    '#default_value' => variable_get('dynamic_banner_file_save_path', DEFAULT_SAVE_LOCATION),
+    '#default_value' => variable_get('dynamic_banner_file_save_path', BANNER_DEFAULT_SAVE_LOCATION),
     '#description'   => t('This will be the path all banners get saved to when using the upload utility. \'public://\' is your sites files folder. '),
     '#required'      => TRUE,
   );

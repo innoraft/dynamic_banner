@@ -14,11 +14,11 @@ include_once('includes/callbacks.inc');
 /**
  * Module Defaults
  */
-define("DEFAULT_OUTPUT", "urltext");
-define("DEFAULT_ERROR", FALSE);
-define("DEFAULT_BLOCK_NAME", "Dynamic Banner Block");
-define("DEFAULT_SAVE_LOCATION", "public://banners/");
-define("DEFAULT_BANNER_MODE", "normal");
+define('BANNER_DEFAULT_OUTPUT',        'urltext');
+define('BANNER_DEFAULT_ERROR',         FALSE);
+define('BANNER_DEFAULT_BLOCK_NAME',    'Dynamic Banner Block');
+define('BANNER_DEFAULT_SAVE_LOCATION', 'public://banners/');
+define('BANNER_DEFAULT_BANNER_MODE',   'normal');
 
 /**
  * Hook Functions (Drupal)
@@ -220,7 +220,7 @@ function dynamic_banner_theme() {
 function dynamic_banner_block_info() {
   $blocks = array();
 
-  $blocks['DEFAULT_BLOCK_NAME'] = array(
+  $blocks[BANNER_DEFAULT_BLOCK_NAME] = array(
     'info' => t('The default display of Dynamic Banner'),
   );
 
@@ -231,7 +231,7 @@ function dynamic_banner_block_info() {
  * Implements hook_block_view()
  */
 function dynamic_banner_block_view($delta) {
-  if ($delta == DEFAULT_BLOCK_NAME) {
+  if ($delta == BANNER_DEFAULT_BLOCK_NAME) {
       // store the path of the page the block is loading from, this will sead our first searches
       $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
       
@@ -259,8 +259,8 @@ function dynamic_banner_block_view($delta) {
               'url'             => $image,
               'text'            => $result->text,
               'link'            => $result->link,
-              'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-              'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+              'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
+              'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -283,8 +283,8 @@ function dynamic_banner_block_view($delta) {
             'url'             => $image,
             'text'            => $result->text,
             'link'            => $result->link,
-            'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-            'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
+            'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -321,8 +321,8 @@ function dynamic_banner_block_view($delta) {
             'url'             => $image[$random],
             'text'            => $text[$random],
             'link'            => $result->link,
-            'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-            'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+            'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
+            'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
           return array('content' => theme('banner_output', $variables));
         }
 
@@ -339,22 +339,24 @@ function dynamic_banner_block_view($delta) {
 
       // well no banner was found for this specific page if we have a default banner then display it
 
-      /////////////////////////////////// this will soon be stored in the variables table ////////////////// TODO
+      ///////////////////////////// this will soon be stored in the variables table ////////////////// TODO
       
       // create and execute query
       $query = db_select('dynamic_banner', 'd');
-      $query->condition('d.dbid', 999, '=')
+      $query->condition('d.path', 'DEFAULT', '=')
         ->fields('d');
       $result = $query->execute()->fetchObject();
-      
+
       // for the resultant row (SHOULD ALWAYS BE ONE)
       if ($result) {
+        $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
         $variables = array(
-          'url'             => $result->imgurl,
+          'url'             => $image,
           'text'            => $result->text,
           'link'            => $result->link,
-          'display_setting' => variable_get('dynamic_banner_display_setting', DEFAULT_OUTPUT),
-          'display_errors'  => variable_get('dynamic_banner_display_errors', DEFAULT_ERROR));
+          'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
+          'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR),
+        );
         return array('content' => theme('banner_output', $variables));
       }
     // just encase something went wrong
