@@ -28,7 +28,7 @@ if ($display_setting == 'urltext') {
   if ($url && $text) {
     // form the html snippet and print
     $output .= "<div id='banner-left'>"; // match this up with your css
-    $output .= "<img src='/$url' class='jpg' alt='banner' width='596' height='209' />";
+    $output .= "<img src='$url' class='jpg' alt='banner' />";
     $output .= "</div><div id='banner-right'>"; // if you have text in your banner match this up with your css
     $output .= "<p id='bannerTitle'>" . $text . "</p>";
     $output .= "</div>";
@@ -41,7 +41,7 @@ elseif ($display_setting == 'url') {
   // just an image url came in
   if ($url) {
     $output .= "<div id='banner'>";
-    $output .= "<img src='/$url' class='jpg' alt='banner' width='596' height='209' />";
+    $output .= "<img src='$url' class='jpg' alt='banner' />";
     $output .= "</div>";
   }
   elseif ( $display_errors) {
@@ -62,7 +62,7 @@ elseif ($display_setting == 'text') {
 elseif ($display_setting == 'urllink') {
   if ($url && $link) {
     $output .= "<div id='banner'>";
-    $output .= "<a class='link' href='$link'><img class='jpg' alt='banner' src='/$url'></a>";
+    $output .= "<a class='link' href='$link'><img class='jpg' alt='banner' src='$url'></a>";
     $output .= "</div>";
   }
   elseif ($display_errors) {

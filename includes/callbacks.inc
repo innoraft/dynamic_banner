@@ -243,7 +243,8 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#required'      => FALSE,
   );
 
-  if ($dbid == '') {
+  // this needs to be set to something as this is pulled in from the url so we need to parse for 0 for new banners
+  if ($dbid == 0) {
     // this will disable the path field for the default banner
     if (strrpos($_GET['q'], "/default")) {
       drupal_set_title(t('Default Banner'));
@@ -387,6 +388,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#default_value' => $banner ? $banner->mode : BANNER_DEFAULT_BANNER_MODE,
     '#description'   => t('What mode do you want this banner to display under (this is different than display setting)'),
     '#required'      => TRUE,
+    '#disabled'      => TRUE,
   );
   /*
   $form['time_on'] = array(
@@ -552,17 +554,13 @@ function dynamic_banner_admin_form_submit($form, &$form_state) {
  * Set a banner for a given path, preventing duplicates.
  * Note if dbid comes in null then we are creating a banner
  */
-function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode, $time_on, $time_off, $dbid = NULL) {
-  if (!$mode) {
-    $mode = BANNER_DEFAULT_BANNER_MODE;
-  }
-
+function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode = BANNER_DEFAULT_BANNER_MODE, $time_on, $time_off, $dbid = NULL) {
   // First we check if we are dealing with an existing alias and delete or modify it based on dbid.
   // we dont need to do a complicated check here because the code already made it for us
   if ($dbid) {
     // Update the existing banner.
     db_update('dynamic_banner')->fields(array(
-      'path'       => $path,
+      'path'       => drupal_strtolower($path),
       'imgurl'     => $imgurl,
       'imgfid'     => $imgfid,
       'text'       => $text,
@@ -574,7 +572,7 @@ function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode,
   }
   else {
     db_insert('dynamic_banner')->fields(array(
-      'path'       => $path,
+      'path'       => drupal_strtolower($path),
       'imgurl'     => $imgurl,
       'imgfid'     => $imgfid,
       'text'       => $text,
@@ -757,14 +755,14 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
           $retval .= ",";
         }
         // have to translate the public string in the uri back into something browsers understand
-        $retval .= str_replace('public://', variable_get('file_public_path', '') . '/', $file->uri);
+        $retval .= file_create_url($file->uri);
       }
       return $retval;
     }
     else {
       $file = file_load($imgfid);
       // have to translate the public string in the uri back into something browsers understand
-      $file_path = str_replace('public://', variable_get('file_public_path', '') . '/', $file->uri);
+      $file_path = file_create_url($file->uri);
       return $file_path;
     }
   }
