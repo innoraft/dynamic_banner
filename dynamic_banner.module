@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * Distributed under GNU GPL version 3
@@ -74,17 +73,8 @@ function dynamic_banner_permission() {
       'description' => t('Allows users to change what banners are displayed and to create thier own'),
     ),
   );
-}
-// end permission function
+}// end permission function
 
-
-/**
- * was using this for debuging
- */
-function dynamic_banner_form_alter(&$form, &$form_state, $form_id) {
-  //dpm($form_id);
-  //dpm($form);
-}
 
 /**
  * Implements hook_menu().
@@ -174,13 +164,12 @@ function dynamic_banner_theme() {
         'display_setting' => NULL,
         'display_errors'  => NULL,
       ),
-      'path'      => drupal_get_path('module', 'dynamic_banner') . '/templates',
-      'template'  => 'banner_output_template',
+      'template'  => 'banner_output',
     ),
   );
 
   return $theme;
-}
+}// end theme function
 
 
 /**
@@ -191,12 +180,12 @@ function dynamic_banner_block_info() {
 
   $blocks[BANNER_DEFAULT_BLOCK_NAME] = array(
     'info'  => t('The default display of Dynamic Banner'),
-    // added this here to disable block caching for this modules block hook
+    // This will mean that on every page new code will be run
     'cache' => DRUPAL_CACHE_PER_PAGE,
   );
 
   return $blocks;
-}
+}// end block info
 
 /**
  * Implements hook_block_view()
@@ -332,4 +321,4 @@ function dynamic_banner_block_view($delta) {
       }
     // just encase something went wrong
   }
-}
+}// end block view
