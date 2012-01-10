@@ -209,7 +209,7 @@ function dynamic_banner_block_view($delta) {
         $query->condition('d.path', $path, '=')
           ->fields('d');
         $result = $query->execute()->fetchObject();
-        
+
         // search for that path string exact match
         if ($result) {
           // have to translate if we have fids
@@ -227,7 +227,7 @@ function dynamic_banner_block_view($delta) {
         // wild section //
         $result = NULL;
         $wild_search = $path . '*';
-        
+
         // create and execute query
         $query = db_select('dynamic_banner', 'd');
         $query->condition('d.path', $wild_search, '=')
