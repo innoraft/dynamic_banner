@@ -2,12 +2,11 @@
 
 /**
  * @file
- * The install file of dynamic_banner
+ *  The install file of dynamic_banner
  */
 
 /**
  * Implements hook_schema().
- *
  * Will create the database needed to store the banner connections
  */
 function dynamic_banner_schema() {
@@ -31,14 +30,14 @@ function dynamic_banner_schema() {
         'type'        => 'varchar',
         'length'      => '255',
         'not null'    => FALSE,
-		'default'     => NULL,
+    'default'     => NULL,
       ),
-	  'imgfid' => array(
+    'imgfid' => array(
         'description' => 'If the image is managed these are the fids of the image for the banner',
         'type'        => 'varchar',
         'length'      => '255',
         'not null'    => FALSE,
-		'default'     => NULL,
+    'default'     => NULL,
       ),
       'text' => array(
         'description' => 'The text to display on this relationship',
@@ -63,14 +62,14 @@ function dynamic_banner_schema() {
         'type'        => 'varchar',
         'length'      => '60',
         'not null'    => FALSE,
-		'default'     => NULL,
+    'default'     => NULL,
       ),
       'end_time' => array(
         'description' => 'The End time for this banner, when it expires',
         'type'        => 'varchar',
         'length'      => '60',
         'not null'    => FALSE,
-		'default'     => NULL,
+    'default'     => NULL,
       ),
     ),
     'primary key' => array('dbid'),
@@ -82,23 +81,20 @@ function dynamic_banner_schema() {
  * Implements hook_install().
  */
 function dynamic_banner_install() {
-  // The drupal_(un)install_schema functions are called automatically in D7.
-
-  // default settings install
+  // Default settings install
   variable_set('dynamic_banner_display_setting', 'urltext');
   variable_set('dynamic_banner_display_errors', FALSE);
   variable_set('dynamic_banner_file_save_path', BANNER_DEFAULT_SAVE_LOCATION);
 
-  drupal_set_message(st('Dynamic Banner Module installed successfully.'), 'warning');
+  drupal_set_message(st('Dynamic Banner Module installed successfully. Proceed to !link',
+    array('!link' => l('Dynamic Banner Settings', 'admin/structure/banners'))), 'warning');
 }
 
 /**
  * Implements hook_uninstall().
  */
 function dynamic_banner_uninstall() {
-  // The drupal_(un)install_schema functions are called automatically in D7.
-
-  // default settings remove
+  // Module settings remove
   variable_del('dynamic_banner_display_setting');
   variable_del('dynamic_banner_display_errors');
   variable_del('dynamic_banner_file_save_path');

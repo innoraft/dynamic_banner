@@ -1,8 +1,4 @@
 name = Dynamic Banner
-description = "Makes a block that can be used to dynamically place a banner on any page you wish to support."
+description = Makes a block that can be used to dynamically place a banner on any page you wish to support.
 dependencies[] = path
 core = 7.x
-files[] = dynamic_banner.install
-files[] = dynamic_banner.module
-files[] = includes/callbacks.inc
-files[] = templates/banner_output_template.tpl.php
