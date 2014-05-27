@@ -3,7 +3,7 @@
 /**
  * Distributed under GNU GPL version 3
  * @file
- *  Will create menu administration links and the public block display 
+ *  Will create menu administration links and the public block display
  *  Required for creating and viewing the available dynamic banners
  */
 
@@ -303,8 +303,8 @@ function dynamic_banner_admin_page() {
   // Grab the filter if the user set one
   $filter = dynamic_banner_build_filter_query();
 
-  // Add the filter form above the overview table. // TODO: fix filter bug
-  //$output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
+  // Add the filter form above the overview table.
+  $output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
 
   // Construct the headers of the table
   $header = array(
@@ -342,8 +342,8 @@ function dynamic_banner_admin_page() {
     ->orderByHeader($header);
 
   // Find if the filter has returned a where clause and add it in before executing
-  if (!empty($filter['where'])) {
-    $query->where($filter['where'], $filter['args']);// not working yet
+  if (!empty($filter)) {
+    $query->where($filter);
   }
   $result = $query->execute();
 
@@ -388,25 +388,22 @@ function dynamic_banner_build_filter_query() {
   }
 
   $filters = dynamic_banner_filters();
-
+  $conditions = dynamic_banner_filter_conditions();
   // Build query
   $where = $args = array();
   foreach ($_SESSION['dynamic_banner_filter'] as $key => $filter) {
     $filter_where = array();
     foreach ($filter as $value) {
-      $filter_where[] = $filters[$key]['where'];
-      $args[] = $value;
+      $condition = $conditions[$value];
+      // If condition contains AND, then replace AND with AND d.path
+      $condition = preg_replace('/AND/', 'AND d.path ', $condition);
+      $filter_where[] = $filters[$key]['where'] . ' ' . $condition;
     }
     if (!empty($filter_where)) {
-      $where[] = '(' . implode(' OR ', $filter_where) . ')';
+      $where = implode(' OR ', $filter_where);
     }
   }
-  $where = !empty($where) ? implode(' AND ', $where) : '';
-
-  return array(
-    'where' => $where,
-    'args' => $args,
-  );
+  return $where;
 }
 
 /**
@@ -414,11 +411,24 @@ function dynamic_banner_build_filter_query() {
  */
 function dynamic_banner_filters() {
   $filters = array();
+  $conditions = dynamic_banner_filter_conditions();
   $filters['type'] = array(
     'title'   => t('Type'),
-    'where'   => 'd.url ?',
-    'options' => array('NOT LIKE %* AND NOT LIKE %!','LIKE %*','LIKE %!'));
+    'where'   => "d.path",
+    'options' => $conditions,
+  );
   return $filters;
+}
+
+/**
+ * The specific filter condition that can be used for banners
+ *
+ * @return
+ *  Filter Conditions.
+ */
+function dynamic_banner_filter_conditions() {
+  $conditions = array("NOT LIKE '%*%' AND NOT LIKE '%!%'", "LIKE '%*%'", "LIKE '%!%'");
+  return $conditions;
 }
 
 /**
@@ -482,7 +492,7 @@ function dynamic_banner_admin_filter_form_validate($form, &$form_state) {
  */
 function dynamic_banner_admin_filter_form_submit($form, &$form_state) {
   $op = $form_state['values']['op'];
-  $filters = dblog_filters();
+  $filters = dynamic_banner_filters();
   switch ($op) {
     case t('Filter'):
       foreach ($filters as $name => $filter) {
