@@ -171,8 +171,8 @@ function dynamic_banner_block_info() {
 function dynamic_banner_block_view($delta) {
   if ($delta == BANNER_DEFAULT_BLOCK_NAME) {
     // Store the path of the page the block is loading from, this will seed our first searches
-    $path = drupal_strtolower($_GET['q']);
-
+    $system_path = current_path();
+    $path = drupal_get_path_alias($system_path);
     // Loop until we find the top down hirarchy
     do {
       $result = NULL;
@@ -182,7 +182,6 @@ function dynamic_banner_block_view($delta) {
       $query->condition('d.path', $path, '=')
         ->fields('d');
       $result = $query->execute()->fetchObject();
-
       // Search for that path string exact match
       if ($result) {
         // We have to translate if we have fids
