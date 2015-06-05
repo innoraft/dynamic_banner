@@ -780,7 +780,7 @@ function dynamic_banner_admin_form_validate($form, &$form_state) {
         $path = drupal_substr($path, 0, $rand_position);
       }
 
-      if (drupal_lookup_path('source', $path)) {
+      if (drupal_valid_path($path)) {
         // We are making a new banner previous checks should be enough to deal with validation
         $dbid = arg(4);
         if ( $dbid != 0) {
