@@ -12,14 +12,8 @@
  */
 define('BANNER_DEFAULT_OUTPUT',        'urltext');
 define('BANNER_DEFAULT_ERROR',         FALSE);
-define('BANNER_DEFAULT_BLOCK_NAME',    'dynamic_banner_block');
 define('BANNER_DEFAULT_SAVE_LOCATION', 'public://banners/');
 define('BANNER_DEFAULT_BANNER_MODE',   'normal');
-
-
-/**
- * Hook Functions (Drupal)
- */
 
 
 /**
@@ -44,8 +38,8 @@ function dynamic_banner_help($path, $arg) {
         <p>Or when you choose to upload one on the spot the URL will be grabbed from that.<p>
         <p>Example image path = sites/all/themes/banners/default.jpg</p>');
       return $output;
-  }// end switch
-}// end help function
+  }
+}
 
 
 /**
@@ -59,7 +53,7 @@ function dynamic_banner_permission() {
       'description' => t('Allows a user to change what banners are displayed within the Dynamic Banner display.'),
     ),
   );
-}// end permission function
+}
 
 
 /**
@@ -89,8 +83,9 @@ function dynamic_banner_menu() {
   $items['admin/structure/banners/delete/%'] = array(
     'title'            => 'Delete Banner',
     'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('dynamic_banner_admin_delete_confirm'),
+    'page arguments'   => array('dynamic_banner_admin_delete_confirm', 4),
     'access arguments' => array('administer dynamic banner'),
+    'type'             => MENU_CALLBACK,
   );
   // the defaulted page to load on menu click
   $items['admin/structure/banners/list'] = array(
@@ -112,7 +107,7 @@ function dynamic_banner_menu() {
   $items['admin/structure/banners/default'] = array(
     'title'            => 'Default Banner',
     'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('dynamic_banner_admin_form'),
+    'page arguments'   => array('dynamic_banner_admin_form', 3),
     'access arguments' => array('administer dynamic banner'),
     'type'             => MENU_LOCAL_ACTION,
   );
@@ -120,7 +115,7 @@ function dynamic_banner_menu() {
   $items['admin/structure/banners/edit/%'] = array(
     'title'            => 'Edit Banner',
     'page callback'    => 'drupal_get_form',
-    'page arguments'   => array('dynamic_banner_admin_form'),
+    'page arguments'   => array('dynamic_banner_admin_form', 4),
     'access arguments' => array('administer dynamic banner'),
   );
 
@@ -156,24 +151,24 @@ function dynamic_banner_theme() {
 function dynamic_banner_block_info() {
   $blocks = array();
 
-  $blocks[BANNER_DEFAULT_BLOCK_NAME] = array(
-    'info'  => t('The default display of Dynamic Banner'),
-    // This will mean that on every page new code will be run
+  $blocks['dynamic_banner_block'] = array(
+    'info'  => t('Dynamic Banner Output'),
+    // This will mean that on every page new code will be run (TODO: Flush page cache for banners being added).
     'cache' => DRUPAL_CACHE_PER_PAGE,
   );
 
   return $blocks;
-}// End block info
+}
 
 /**
- * Implements hook_block_view()
+ * Implements hook_block_view().
  */
 function dynamic_banner_block_view($delta) {
-  if ($delta == BANNER_DEFAULT_BLOCK_NAME) {
-    // Store the path of the page the block is loading from, this will seed our first searches
+  if ($delta == 'dynamic_banner_block') {
+    // Store the path of the page the block is loading from, this will seed our first searches.
     $system_path = current_path();
     $path = drupal_get_path_alias($system_path);
-    // Loop until we find the top down hirarchy
+    // Loop until we find the top down hirarchy.
     do {
       $result = NULL;
       // Exact match section //
@@ -237,9 +232,9 @@ function dynamic_banner_block_view($delta) {
         // Support for random text if needed
         $texts = $result->text;
         // Explode comma seperated images and text
-        $image = explode(",", $images);
+        $image = explode(',', $images);
         // Support for random text if needed
-        $text = explode(",", $texts);
+        $text = explode(',', $texts);
 
         // Count how many there are
         $count = count($image);
@@ -258,8 +253,8 @@ function dynamic_banner_block_view($delta) {
         return array('content' => theme('banner_output', $variables));
       }
 
-      // Chop off more of the string and try again, it is key to not modify the path before this point
-      $last_slash_position = strrpos($path, "/"); // returns false if not found
+      // Chop off more of the string and try again, it is paramount to not modify the path before this point.
+      $last_slash_position = strrpos($path, '/');
       if ($last_slash_position !== FALSE) {
         $path = drupal_substr($path, 0, $last_slash_position);
       }
@@ -278,7 +273,7 @@ function dynamic_banner_block_view($delta) {
     $result = $query->execute()->fetchObject();
 
     // For the resultant row (SHOULD ALWAYS BE ONE)
-    if ($result) {
+    if ($result->rowCount() == 1) {
       $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
       $variables = array(
         'url'             => $image,
@@ -289,9 +284,8 @@ function dynamic_banner_block_view($delta) {
       );
       return array('content' => theme('banner_output', $variables));
     }
-    // Just in case something went wrong
   }
-}// End block view
+}
 
 /**
  * Return a listing of all defined URL aliases.
@@ -299,13 +293,10 @@ function dynamic_banner_block_view($delta) {
  * And return the list of matching URL aliases.
  */
 function dynamic_banner_admin_page() {
-  // Grab the filter if the user set one
+  // Grab the filter if the user set one.
   $filter = dynamic_banner_build_filter_query();
 
-  // Add the filter form above the overview table.
   $output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
-
-  // Construct the headers of the table
   $header = array(
     array(
       'data'    => t('Url'),
@@ -333,11 +324,10 @@ function dynamic_banner_admin_page() {
     ),
   );
 
-  // Contruct the db call for the list
-  // Load all data fields and attach pager and sorter function in
-  $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort'); // alias the table name to d
+  // Load all data fields and attach pager and sorter.
+  $query = db_select('dynamic_banner', 'd')->extend('PagerDefault')->extend('TableSort');
   $query->fields('d') // Select all fields from the node table.
-    ->limit(20) // Load the first 20 rows.
+    ->limit(20)
     ->orderByHeader($header);
 
   // Find if the filter has returned a where clause and add it in before executing
@@ -346,7 +336,7 @@ function dynamic_banner_admin_page() {
   }
   $result = $query->execute();
 
-  // Start constructing the individual rows
+  // Start constructing the individual rows.
   $rows = array();
   foreach ($result as $data) {
     $image = dynamic_banner_image_handler($data->imgurl, $data->imgfid);
@@ -357,13 +347,12 @@ function dynamic_banner_admin_page() {
         $data->text,
         $data->link,
         $data->mode,
-        l(t('edit'), "admin/structure/banners/edit/" . $data->dbid),
-        l(t('delete'), "admin/structure/banners/delete/" . $data->dbid)
+        l(t('edit'), 'admin/structure/banners/edit/' . $data->dbid),
+        l(t('delete'), 'admin/structure/banners/delete/' . $data->dbid)
       )
     );
   }
 
-  // Construct the call for the theme function to run on this
   $output['dynamic_banner_table'] = array(
     '#theme'  => 'table',
     '#header' => $header,
@@ -371,15 +360,14 @@ function dynamic_banner_admin_page() {
     '#empty'  => t('No Banners Found.'),
   );
 
-  // Adds the pager buttons to the bottom of the table
+  // Adds the pager buttons to the bottom of the table.
   $output['dynamic_banner_pager'] = array('#theme' => 'pager');
 
-  // Let Drupal handle print and echo
   return $output;
 }
 
 /**
- * Needed for the filtering of the banners page
+ * Needed for the filtering of the banners page.
  */
 function dynamic_banner_build_filter_query() {
   if (empty($_SESSION['dynamic_banner_filter'])) {
@@ -413,7 +401,7 @@ function dynamic_banner_filters() {
   $conditions = dynamic_banner_filter_conditions();
   $filters['type'] = array(
     'title'   => t('Type'),
-    'where'   => "d.path",
+    'where'   => 'd.path',
     'options' => $conditions,
   );
   return $filters;
@@ -434,7 +422,7 @@ function dynamic_banner_filter_conditions() {
  * Return a form to filter Banners.
  *
  * ingroup forms
- * see dynamic_banner_admin_filter_form_submit()
+ * see dynamic_banner_admin_filter_form_submit().
  */
 function dynamic_banner_admin_filter_form($form) {
   $filters = dynamic_banner_filters();
@@ -519,55 +507,43 @@ function dynamic_banner_admin_filter_form_submit_reset($form, &$form_state) {
 /**
  * The main form dealing with dynamic banner
  * There is now only one form for dynamic banner to deal with unlink in the d6 version
- *
- * INPUT: arg(4) is from the url path of this form
  */
-function dynamic_banner_admin_form($form, &$form_state) {
-  $dbid = arg(4); // The last portion of the url there must be a better way of doing this
+function dynamic_banner_admin_form($form, &$form_state, $dbid = NULL) {
+  // This is used by the file handler, It is needed to accept files.
+  $form['#attributes'] = array('enctype' => 'multipart/form-data');
 
-  // This is used by the file handler, It is needed to accept files
-  $form['#attributes'] = array('enctype' => "multipart/form-data");
-
-  $file_path = drupal_get_path('module', 'file');
-
-  // Default the variables here
-  $banner = NULL; // Prevent bugs nulify the variable
-  $default_flag = FALSE; // Enable variable in this scope
-
-  // Hide it so that the user may not change this element
-  $form['dbid'] = array(
-    '#type'          => 'hidden',
-    '#required'      => FALSE,
-  );
+  $banner = NULL;
+  $default_flag = FALSE;
 
   // This needs to be set to something as this is pulled in from the url so we need to parse for 0 for new banners
-  if ($dbid == 0) {
-    // This will disable the path field for the default banner
-    if (strrpos($_GET['q'], "/default")) {
-      drupal_set_title(t('Default Banner'));
-      // Load the default if there is one
-      $banner = dynamic_banner_find_load_default();
-    }
-    else {
-      drupal_set_title(t('New Banner'));
-      $form['dbid']['#value'] = NULL;
+  if (isset($dbid) && is_numeric($dbid)) {
+    // The dbid is set so a banner must exist load it 
+    $banner = dynamic_banner_load_banner($dbid);
+    drupal_set_title(t('Edit Existing Banner'));
+    $form['dbid'] = array(
+      '#type' => 'hidden',
+      '#value'=> $dbid,
     }
   }
+  elseif (isset($dbid) && $dbid == 'default') {
+    drupal_set_title(t('Default Banner'));
+    // Load the default if there is one
+    $banner = dynamic_banner_find_load_default();
+  }
   else {
-    // The dbid is set so a banner must exist load it
-    $banner = dynamic_banner_load_banner($dbid);
-    drupal_set_title(t("Edit Banner") . " '" . $banner->path . "'");
-    $form['dbid']['#value'] = $dbid;
+    drupal_set_title(t('New Banner Creation'));
   }
 
   // This will prevent the used from changing this field once the default has been loaded
   // It deals with a bug if the person chose to edit the specific banner for default rather than pressing default
   if ($banner && $banner->path == 'DEFAULT') {
-    $default_flag = TRUE;
+    $form['path'] = array(
+      '#type'          => 'hidden',
+      '#title'         => t('Banner Path'),
+      '#value'         => 'DEFAULT',
+    );
   }
-
-  // Disable the path form element when the default flag is out
-  if (!$default_flag) {
+  else {
     $form['path'] = array(
       '#type'          => 'textfield',
       '#title'         => t('Banner Path'),
@@ -578,25 +554,17 @@ function dynamic_banner_admin_form($form, &$form_state) {
       '#field_prefix'  => url(NULL, array('absolute' => TRUE)) . (variable_get('clean_url', 0) ? '' : '?q='),
       '#required'      => TRUE,
     );
-  }
-  else {
-    $form['path'] = array(
-      '#type'          => 'hidden',
-      '#title'         => t('Banner Path'),
-      '#value'         => 'DEFAULT',
-    );
-  }
-
-  // if the module exists add the autocomplete path
-  // i might have to do my own autocomplete here cause mpac doesnt really do what i need it to do
-  if (module_exists('mpac')) {
-    $form['path']['#autocomplete_path'] = 'mpac/autocomplete/alias';
+    // TODO: Implement native autocomplete path ajax call.
+    if (module_exists('mpac')) {
+      $form['path']['#autocomplete_path'] = 'mpac/autocomplete/alias';
+    }
   }
 
   $form['image_type'] = array(
-    '#type'    => 'radios',
-    '#options' => drupal_map_assoc(array(t('Use Existing Image(s)'), t('Upload New Image(s)'))),
-    '#title'   => t('Choose image type.')
+    '#type'     => 'radios',
+    '#options'  => drupal_map_assoc(array(t('Use Existing Image(s)'), t('Upload New Image(s)'))),
+    '#title'    => t('Choose image type.')
+    '#required' => TRUE,
   );
 
   if ($banner && isset($banner->imgurl)) {
@@ -643,7 +611,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#type'               => 'managed_file',
     '#default_value'      => $banner ? $banner->imgfid : '',
     '#attached'           => array(
-      'js'                => array($file_path . '/file.js'),
+      'js'                => array(drupal_get_path('module', 'file') . '/file.js'),
      ),
     '#progress_indicator' => 'throbber',
     '#progress_message'   => NULL,
@@ -677,7 +645,7 @@ function dynamic_banner_admin_form($form, &$form_state) {
     '#default_value' => $banner ? $banner->link : '',
     '#maxlength'     => 250,
     '#size'          => 45,
-    '#description'   => t('Specify the link you want your banner to point to (optional).'),
+    '#description'   => t('Specify the link you want your banner to point to (optional if you are displaying your banners with anchor tag component).'),
     '#required'      => FALSE,
   );
 
@@ -751,31 +719,28 @@ function dynamic_banner_upload_image_validate($element, &$form_state) {
 }
 
 /**
- * Verify that the Banner is valid
- * It makes sure that the sql does not throw errors
+ * Verify that the Banner being submitted by the user is valid.
  */
 function dynamic_banner_admin_form_validate($form, &$form_state) {
-  // For a banner to exist it needs a path that it is assigned to and an image, thats it.
+  // For a banner to exist it needs a path and an image (either just uploaded or set manually).
   if (isset($form_state['values']['path']) &&
     (isset($form_state['values']['image']) || isset($form_state['values']['imgurl']))) {
 
     $path = $form_state['values']['path'];
 
     if ($path != 'DEFAULT') {
-      // Check db before altering the path variable
-      // Check for more than one of the same path banners
-      if (db_query("SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path", array(':path' => $path))->fetchField() > 1) {
+      // Unique path check.
+      if (db_query('SELECT COUNT(path) FROM {dynamic_banner} WHERE path = :path', array(':path' => $path))->fetchField() > 1) {
         form_set_error('path', t('The path %path is already in use.', array('%path' => $path)));
-        return;
       }
-      // Path is not clean at this point because of wildcard and random must chop those characters off
-      // Find the * or wildcard
-      $wild_position = strrpos($path, "*");
+      // Path is not clean at this point because of wildcard and random must chop those characters off.
+      // Find the * or wildcard.
+      $wild_position = strrpos($path, '*');
       if ($wild_position !== FALSE) {
         $path = drupal_substr($path, 0, $wild_position);
       }
       // Find the ! or random
-      $rand_position = strrpos($path, "!");
+      $rand_position = strrpos($path, '!');
       if ($rand_position !== FALSE) {
         $path = drupal_substr($path, 0, $rand_position);
       }
@@ -871,14 +836,12 @@ function dynamic_banner_set_banner($path, $imgurl, $imgfid, $text, $link, $mode 
 }
 
 /**
- * Menu callback; confirms deleting a Banner
+ * Menu callback; confirms deleting a Banner.
  */
-function dynamic_banner_admin_delete_confirm($form, $form_state) {
-  // the last part of the url
-  $dbid = arg(4);
-
+function dynamic_banner_admin_delete_confirm($form, $form_state, $dbid) {
   $banner = dynamic_banner_load_banner($dbid);
-  if (user_access('administer dynamic_banner')) {
+
+  if (isset($banner) && !empty($banner)) {
     $form['dbid'] = array(
       '#type'  => 'hidden',
       '#value' => $dbid,
@@ -886,19 +849,20 @@ function dynamic_banner_admin_delete_confirm($form, $form_state) {
     $output = confirm_form($form,
       t('Are you sure you want to delete banner %title?', array('%title' => $banner->path)),
       isset($_GET['destination']) ? $_GET['destination'] : 'admin/structure/banners');
+    return $output;
   }
-  return $output;
+  // Can't delete non existent banner.
+  drupal_access_denied();
 }
 
 /**
- * Execute banners deletion
+ * Execute banners deletion.
  */
 function dynamic_banner_admin_delete_confirm_submit($form, &$form_state) {
   if ($form_state['values']['confirm']) {
     dynamic_banner_admin_delete($form_state['values']['dbid']);
-    $form_state['redirect'] = 'admin/structure/banners';
-    return;
   }
+  $form_state['redirect'] = 'admin/structure/banners';
 }
 
 /**
@@ -918,7 +882,7 @@ function dynamic_banner_load_banner($dbid) {
     ->fields('d');
   $result = $query->execute()->fetchObject();
 
-  if ($result) {
+  if ($result->rowCount() > 0) {
     return $result;
   }
   return NULL;
@@ -933,7 +897,7 @@ function dynamic_banner_find_load_default() {
     ->fields('d');
   $result = $query->execute()->fetchObject();
 
-  if ($result) {
+  if ($result->rowCount() > 0) {
     return $result;
   }
 
@@ -950,7 +914,7 @@ function dynamic_banner_find_load_default() {
 }
 
 /**
- * A page that will display a form for changing how dynamic banner will function
+ * A page that will display a form for changing how dynamic banner will function.
  */
 function dynamic_banner_settings($form, $form_state) {
   // TODO: need to find a better way of doing this
@@ -963,7 +927,7 @@ function dynamic_banner_settings($form, $form_state) {
     '#type'          => 'radios',
     '#title'         => t('Display Setting'),
     '#options'       => drupal_map_assoc(array(t('url'), t('text'), t('urltext'), t('urllink'))),
-    '#default_value' => variable_get( 'dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT ),
+    '#default_value' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT ),
     '#description'   => t('What display pattern do you want the module to follow in the template file?'),
     '#required'      => TRUE,
   );
@@ -974,7 +938,7 @@ function dynamic_banner_settings($form, $form_state) {
     '#default_value' => $errors_current_setting,
     '#description'   => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
     '#required'      => TRUE,
-  ); // Does this still work when there is a default banner
+  ); // Does this still work when there is a default banner.
   $form['image_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
@@ -987,6 +951,7 @@ function dynamic_banner_settings($form, $form_state) {
     '#value'         => t('Save'),
   );
 
+  // TODO: Convert to drupal settings form.
   return $form;
 }
 
@@ -1034,8 +999,8 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
       // Go into all the loaded files
       foreach ($all_files as $file) {
         // If this is the first time through do not add a comma to the string
-        if ($retval != "") {
-          $retval .= ",";
+        if ($retval != '') {
+          $retval .= ',';
         }
         // Have to translate the public string in the uri back into something browsers understand
         $retval .= file_create_url($file->uri);
@@ -1058,7 +1023,7 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
 function dynamic_banner_image_delete($fid) {
   if (strrpos($fid, ',')) {
     // Split the plain string into an array
-    $all_fids = explode(",", $imgfid);
+    $all_fids = explode(',', $imgfid);
     // Load all files at once
     $all_files = file_load_multiple($all_fids);
 
