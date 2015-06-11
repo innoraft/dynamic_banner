@@ -11,7 +11,6 @@
  * Module Defaults
  */
 define('BANNER_DEFAULT_OUTPUT',        'urltext');
-define('BANNER_DEFAULT_ERROR',         FALSE);
 define('BANNER_DEFAULT_SAVE_LOCATION', 'public://banners/');
 define('BANNER_DEFAULT_BANNER_MODE',   'normal');
 
@@ -187,7 +186,7 @@ function dynamic_banner_block_view($delta) {
             'text'            => $result->text,
             'link'            => $result->link,
             'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
-            'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
+            'display_errors'  => variable_get('dynamic_banner_display_errors', 0));
         return array('content' => theme('banner_output', $variables));
       }
 
@@ -211,7 +210,7 @@ function dynamic_banner_block_view($delta) {
           'text'            => $result->text,
           'link'            => $result->link,
           'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
-          'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
+          'display_errors'  => variable_get('dynamic_banner_display_errors', 0));
         return array('content' => theme('banner_output', $variables));
       }
 
@@ -249,7 +248,7 @@ function dynamic_banner_block_view($delta) {
           'text'            => $text[$random],
           'link'            => $result->link,
           'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
-          'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR));
+          'display_errors'  => variable_get('dynamic_banner_display_errors', 0));
         return array('content' => theme('banner_output', $variables));
       }
 
@@ -270,17 +269,18 @@ function dynamic_banner_block_view($delta) {
     $query = db_select('dynamic_banner', 'd');
     $query->condition('d.path', 'DEFAULT', '=')
       ->fields('d');
-    $result = $query->execute()->fetchObject();
+    $result = $query->execute();
 
     // For the resultant row (SHOULD ALWAYS BE ONE)
     if ($result->rowCount() == 1) {
-      $image = dynamic_banner_image_handler($result->imgurl, $result->imgfid);
+      $default_banner = $result->fetchObject();
+      $default_image = dynamic_banner_image_handler($default_banner->imgurl, $default_banner->imgfid);
       $variables = array(
-        'url'             => $image,
-        'text'            => $result->text,
-        'link'            => $result->link,
+        'url'             => $default_image,
+        'text'            => $default_banner->text,
+        'link'            => $default_banner->link,
         'display_setting' => variable_get('dynamic_banner_display_setting', BANNER_DEFAULT_OUTPUT),
-        'display_errors'  => variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR),
+        'display_errors'  => variable_get('dynamic_banner_display_errors', 0),
       );
       return array('content' => theme('banner_output', $variables));
     }
@@ -299,23 +299,23 @@ function dynamic_banner_admin_page() {
   $output['dynamic_banner_admin_filter_form'] = drupal_get_form('dynamic_banner_admin_filter_form');
   $header = array(
     array(
-      'data'    => t('Url'),
+      'data'    => t('Banner Path'),
       'field'   => 'd.path',
       'sort'    => 'asc',
     ),
     array(
-      'data'    => t('ImgUrl'),
+      'data'    => t('Image Path'),
     ),
     array(
       'data'    => t('Text'),
       'field'   => 'd.text',
     ),
     array(
-      'data'    => t('Link'),
+      'data'    => t('Anchor Link'),
       'field'   => 'd.link',
     ),
     array(
-      'data'    => t('Mode'),
+      'data'    => t('Display Mode'),
       'field'   => 'd.mode',
     ),
     array(
@@ -374,8 +374,8 @@ function dynamic_banner_build_filter_query() {
     return;
   }
 
-  $filters = dynamic_banner_filters();
-  $conditions = dynamic_banner_filter_conditions();
+  $filters = _dynamic_banner_filters();
+  $conditions = _dynamic_banner_filter_conditions();
   // Build query
   $where = $args = array();
   foreach ($_SESSION['dynamic_banner_filter'] as $key => $filter) {
@@ -394,11 +394,11 @@ function dynamic_banner_build_filter_query() {
 }
 
 /**
- * The specific filters that can be used for banners
+ * The specific filters that can be used for banners.
  */
-function dynamic_banner_filters() {
+function _dynamic_banner_filters() {
   $filters = array();
-  $conditions = dynamic_banner_filter_conditions();
+  $conditions = _dynamic_banner_filter_conditions();
   $filters['type'] = array(
     'title'   => t('Type'),
     'where'   => 'd.path',
@@ -408,12 +408,12 @@ function dynamic_banner_filters() {
 }
 
 /**
- * The specific filter condition that can be used for banners
+ * The specific filter condition that can be used for banners.
  *
  * @return
  *  Filter Conditions.
  */
-function dynamic_banner_filter_conditions() {
+function _dynamic_banner_filter_conditions() {
   $conditions = array("NOT LIKE '%*%' AND NOT LIKE '%!%'", "LIKE '%*%'", "LIKE '%!%'");
   return $conditions;
 }
@@ -425,7 +425,7 @@ function dynamic_banner_filter_conditions() {
  * see dynamic_banner_admin_filter_form_submit().
  */
 function dynamic_banner_admin_filter_form($form) {
-  $filters = dynamic_banner_filters();
+  $filters = _dynamic_banner_filters();
 
   $form['filters'] = array(
     '#type'        => 'fieldset',
@@ -479,7 +479,7 @@ function dynamic_banner_admin_filter_form_validate($form, &$form_state) {
  */
 function dynamic_banner_admin_filter_form_submit($form, &$form_state) {
   $op = $form_state['values']['op'];
-  $filters = dynamic_banner_filters();
+  $filters = _dynamic_banner_filters();
   switch ($op) {
     case t('Filter'):
       foreach ($filters as $name => $filter) {
@@ -523,7 +523,7 @@ function dynamic_banner_admin_form($form, &$form_state, $dbid = NULL) {
     $form['dbid'] = array(
       '#type' => 'hidden',
       '#value'=> $dbid,
-    }
+    );
   }
   elseif (isset($dbid) && $dbid == 'default') {
     drupal_set_title(t('Default Banner'));
@@ -547,7 +547,7 @@ function dynamic_banner_admin_form($form, &$form_state, $dbid = NULL) {
     $form['path'] = array(
       '#type'          => 'textfield',
       '#title'         => t('Banner Path'),
-      '#default_value' => $banner ? $banner->path : "",
+      '#default_value' => $banner ? $banner->path : '',
       '#size'          => 45,
       '#maxlength'     => 250,
       '#description'   => t('Specify an existing url path you wish to put a banner on. For example: home, user* (wild card), content! (random). Enter a path as it appears in the url of your site.'),
@@ -563,7 +563,7 @@ function dynamic_banner_admin_form($form, &$form_state, $dbid = NULL) {
   $form['image_type'] = array(
     '#type'     => 'radios',
     '#options'  => drupal_map_assoc(array(t('Use Existing Image(s)'), t('Upload New Image(s)'))),
-    '#title'    => t('Choose image type.')
+    '#title'    => t('Choose image type.'),
     '#required' => TRUE,
   );
 
@@ -880,10 +880,10 @@ function dynamic_banner_load_banner($dbid) {
   $query = db_select('dynamic_banner', 'd');
   $query->condition('d.dbid', $dbid, '=')
     ->fields('d');
-  $result = $query->execute()->fetchObject();
+  $result = $query->execute();
 
   if ($result->rowCount() > 0) {
-    return $result;
+    return $result->fetchObject();
   }
   return NULL;
 }
@@ -895,10 +895,10 @@ function dynamic_banner_find_load_default() {
   $query = db_select('dynamic_banner', 'd');
   $query->condition('d.path', 'DEFAULT', '=')
     ->fields('d');
-  $result = $query->execute()->fetchObject();
+  $result = $query->execute();
 
   if ($result->rowCount() > 0) {
-    return $result;
+    return $result->fetchObject();
   }
 
   // Do not return null for this
@@ -916,14 +916,10 @@ function dynamic_banner_find_load_default() {
 /**
  * A page that will display a form for changing how dynamic banner will function.
  */
-function dynamic_banner_settings($form, $form_state) {
-  // TODO: need to find a better way of doing this
-  $errors_current_setting = 1;
-  if ( variable_get('dynamic_banner_display_errors', BANNER_DEFAULT_ERROR) ) {
-    $errors_current_setting = 0;
-  }
+function dynamic_banner_settings() {
+  $form = array();
 
-  $form['display_setting'] = array(
+  $form['dynamic_banner_display_setting'] = array(
     '#type'          => 'radios',
     '#title'         => t('Display Setting'),
     '#options'       => drupal_map_assoc(array(t('url'), t('text'), t('urltext'), t('urllink'))),
@@ -931,50 +927,24 @@ function dynamic_banner_settings($form, $form_state) {
     '#description'   => t('What display pattern do you want the module to follow in the template file?'),
     '#required'      => TRUE,
   );
-  $form['display_errors'] = array(
+  $form['dynamic_banner_display_errors'] = array(
     '#type'          => 'radios',
-    '#title'         => t('Display Errors?'),
-    '#options'       => array(t('yes'), t('no')),
-    '#default_value' => $errors_current_setting,
+    '#title'         => t('Debug?'),
+    '#options'       => array(0 => t('Disabled'), 1 => t('Enabled')),
+    '#default_value' => variable_get('dynamic_banner_display_errors', 0),
     '#description'   => t('If dynamic banner can not find a banner for the current page do you want it to display an error?'),
     '#required'      => TRUE,
-  ); // Does this still work when there is a default banner.
-  $form['image_save_path'] = array(
+  );
+  $form['dynamic_banner_file_save_path'] = array(
     '#type'          => 'textfield',
     '#title'         => t('Image save path'),
     '#default_value' => variable_get('dynamic_banner_file_save_path', BANNER_DEFAULT_SAVE_LOCATION),
-    '#description'   => t('This will be the path all banners get saved to when using the upload utility. \'public://\' is your sites files folder.'),
+    '#description'   => t('This will be the path all banners get saved to when using the upload utility. \'public://\' is your sites files folder.
+      This setting does not apply for old uploaded images.'),
     '#required'      => TRUE,
   );
-  $form['submit'] = array(
-    '#type'          => 'submit',
-    '#value'         => t('Save'),
-  );
 
-  // TODO: Convert to drupal settings form.
-  return $form;
-}
-
-/**
- * When the settings form submits this function will save the settings for use
- */
-function dynamic_banner_settings_submit($form, &$form_state) {
-  $display = $form_state['values']['display_setting'];
-  variable_set('dynamic_banner_display_setting', $display);
-
-  $errors = $form_state['values']['display_errors'];
-
-  // TODO: fix this
-  if ($errors == 0) {
-    variable_set('dynamic_banner_display_errors', TRUE);
-  }
-  else {
-    variable_set('dynamic_banner_display_errors', FALSE);
-  }
-
-  variable_set('dynamic_banner_file_save_path', $form_state['values']['image_save_path']);
-
-  $form_state['redirect'] = 'admin/structure/banners';
+  return system_settings_form($form);
 }
 
 /**
@@ -992,10 +962,10 @@ function dynamic_banner_image_handler($imgurl, $imgfid) {
   else {
     if (strrpos($imgfid, ',')) {
       // Split the plain string into an array
-      $all_fids = explode(",", $imgfid);
+      $all_fids = explode(',', $imgfid);
       // Load all files at once
       $all_files = file_load_multiple($all_fids);
-      $retval = ""; // Default the return string
+      $retval = ''; // Default the return string
       // Go into all the loaded files
       foreach ($all_files as $file) {
         // If this is the first time through do not add a comma to the string
